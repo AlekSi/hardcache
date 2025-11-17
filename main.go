@@ -25,8 +25,8 @@ var cli struct {
 		UnusedFor unit.Duration `default:"5d" help:"Remove entries unused for this duration."`
 		MaxSize   unit.Bytes    `default:"0GB" help:"Remove entries if cache size is larger than this."`
 
-		Trim struct{} `cmd:"" help:"Trim local disk cache."`
-	} `cmd:"" help:"Use local disk cache via GOCACHEPROG."`
+		Trim struct{} `cmd:"" help:"Trim local cache."`
+	} `cmd:""`
 
 	Debug bool `help:"Enable debug logging."`
 }
@@ -66,7 +66,7 @@ func localCache(l *slog.Logger) (*local.Cache, error) {
 func main() {
 	opts := []kong.Option{
 		kong.Name("hardcache"),
-		kong.Description("Tool to manage Go build cache."),
+		kong.Description("Tool for managing the Go build cache."),
 		kong.Vars{
 			"local_dir": GOCACHE(),
 		},
