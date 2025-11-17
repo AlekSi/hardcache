@@ -1,0 +1,4 @@
+./bits.go
+./bits_errors.go
+./bits_tables.go
+./export_test.go

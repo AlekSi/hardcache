@@ -1,0 +1,46 @@
+---
+name: Go
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: "12 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test ${{ matrix.go }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.24.x", "1.25.x"]
+        os: [ubuntu-24.04, macos-26]
+
+    steps:
+      - name: Fix git settings on Windows
+        if: contains(matrix.os, 'windows')
+        run: git config --global core.autocrlf input
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Run tests
+        run: make test
+
+      - name: Check dirtiness
+        run: |
+          go mod tidy
+          gofmt -s -w .
+          git status
+          git diff --exit-code

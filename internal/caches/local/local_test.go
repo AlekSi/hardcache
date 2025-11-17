@@ -1,0 +1,183 @@
+package local
+
+import (
+	"encoding/hex"
+	"math"
+	"os/exec"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/neilotoole/slogt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/AlekSi/hardcache/internal/go/cache"
+)
+
+// setup copies testdata cache to a test-specific temporary directory.
+func setup(t testing.TB) string {
+	t.Helper()
+
+	src := filepath.Join("..", "..", "testdata", "local")
+	dst := t.TempDir()
+
+	b, err := exec.Command("cp", "-a", src, dst).CombinedOutput()
+	require.NoError(t, err, "%s", b)
+
+	return filepath.Join(dst, "local")
+}
+
+// fromHex decodes a hex string to a byte array.
+func fromHex(t testing.TB, s string) [cache.HashSize]byte {
+	t.Helper()
+
+	var res [cache.HashSize]byte
+	n, err := hex.Decode(res[:], []byte(s))
+	require.NoError(t, err)
+	require.Equal(t, n, cache.HashSize)
+
+	return res
+}
+
+// actionID converts a hex string to an ActionID.
+func actionID(t testing.TB, s string) cache.ActionID {
+	t.Helper()
+	return cache.ActionID(fromHex(t, s))
+}
+
+// outputID converts a hex string to an OutputID.
+func outputID(t testing.TB, s string) cache.OutputID {
+	t.Helper()
+	return cache.OutputID(fromHex(t, s))
+}
+
+func TestCache(t *testing.T) {
+	t.Parallel()
+
+	dir := setup(t)
+
+	c, err := cache.Open(dir)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, c.Close())
+	})
+
+	actual, err := c.Get(actionID(t, "01a8b978c9044aabe4e554ee2d630f5437162fd385e60fbaf51492b4be15c226"))
+	require.NoError(t, err)
+
+	expected := cache.Entry{
+		OutputID: outputID(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+		Size:     0,
+		Time:     time.Date(2025, time.November, 17, 17, 13, 1, 426224000, time.UTC).Local(),
+	}
+
+	assert.Equal(t, expected.Time, actual.Time)
+	assert.Equal(t, expected, actual)
+
+	actual, err = c.Get(actionID(t, "fd8792322c0942921f5dca60ae1196d10c2195bfadef68f80f94de000625531c"))
+	require.NoError(t, err)
+
+	expected.Time = time.Date(2025, time.November, 17, 17, 13, 2, 227666000, time.UTC).Local()
+
+	assert.Equal(t, expected.Time, actual.Time)
+	assert.Equal(t, expected, actual)
+
+	// executable
+	actual, err = c.Get(actionID(t, "b774285e0fffc3f1827be05e08ea22244e40ae09ca8359e45e329740aaa06dba"))
+	require.NoError(t, err)
+
+	expected = cache.Entry{
+		OutputID: outputID(t, "4b949c7e306fe19cf063f3dc5c1ab963a09a6bea4f7545974fe7385bdbaace94"),
+		Size:     1060642,
+		Time:     time.Date(2025, time.November, 17, 17, 13, 7, 284280000, time.UTC).Local(),
+	}
+
+	assert.Equal(t, expected.Time, actual.Time)
+	assert.Equal(t, expected, actual)
+}
+
+func TestTrimNoop(t *testing.T) {
+	t.Parallel()
+
+	c, err := New(setup(t), nil, nil, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, -1, before)
+	assert.EqualValues(t, 0, freed)
+}
+
+func TestTrimCutoffNone(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 0, freed)
+}
+
+func TestTrimCutoffAll(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)
+	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 109_518_524, freed)
+}
+
+func TestTrimCutoffPart(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)
+	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 3_975_344, freed)
+}
+
+func TestTrimSizeNone(t *testing.T) {
+	t.Parallel()
+
+	maxSize := int64(math.MaxInt64)
+	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 0, freed)
+}
+
+func TestTrimSizeAll(t *testing.T) {
+	t.Parallel()
+
+	maxSize := int64(0)
+	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 109_518_524, freed)
+}
+
+func TestTrimSizePart(t *testing.T) {
+	t.Parallel()
+
+	maxSize := int64(50_000_000)
+	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	require.NoError(t, err)
+
+	before, freed := c.TrimForce()
+	assert.EqualValues(t, 109_518_524, before)
+	assert.EqualValues(t, 60_023_595, freed)
+	assert.Less(t, before-freed, maxSize)
+}
