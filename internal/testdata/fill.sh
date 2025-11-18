@@ -20,3 +20,5 @@ go test -count=1 math
 sleep 1
 
 go tool mytool
+
+../../bin/modtimes -save
