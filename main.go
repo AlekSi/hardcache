@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -12,6 +13,8 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
+	"github.com/AlekSi/hardcache/internal/caches/stat"
+	"github.com/AlekSi/hardcache/internal/prog"
 	"github.com/AlekSi/hardcache/internal/sigterm"
 	"github.com/AlekSi/hardcache/internal/unit"
 )
@@ -25,6 +28,7 @@ var cli struct {
 		UnusedFor unit.Duration `default:"5d" help:"Remove entries unused for this duration."`
 		MaxSize   unit.Bytes    `default:"0GB" help:"Remove entries if cache size is larger than this."`
 
+		Use  struct{} `cmd:"" hidden:""`
 		Trim struct{} `cmd:"" help:"Trim local cache."`
 	} `cmd:""`
 
@@ -88,9 +92,15 @@ func main() {
 	ctx, cancel := sigterm.Ctx(context.Background())
 	defer cancel()
 
-	_ = ctx
-
 	switch kongCtx.Command() {
+	case "local use":
+		c, err := localCache(l)
+		kongCtx.FatalIfErrorf(err)
+
+		p := prog.New(stat.New(c, l), l, os.Stdin, os.Stdout)
+		err = p.Run(ctx)
+		kongCtx.FatalIfErrorf(err)
+
 	case "local trim":
 		c, err := localCache(l)
 		kongCtx.FatalIfErrorf(err)
