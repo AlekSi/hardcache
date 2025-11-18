@@ -8,6 +8,7 @@
 package filelock
 
 import (
+	"errors"
 	"io/fs"
 )
 
@@ -72,4 +73,11 @@ func (lt lockType) String() string {
 	default:
 		return "Unlock"
 	}
+}
+
+// IsNotSupported returns a boolean indicating whether the error is known to
+// report that a function is not supported (possibly for a specific input).
+// It is satisfied by errors.ErrUnsupported as well as some syscall errors.
+func IsNotSupported(err error) bool {
+	return errors.Is(err, errors.ErrUnsupported)
 }

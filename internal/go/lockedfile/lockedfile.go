@@ -52,13 +52,9 @@ func OpenFile(name string, flag int, perm fs.FileMode) (*File, error) {
 	// especially don't want to leave a file locked after we're done with it. Our
 	// Close method is what releases the locks, so use a cleanup to report
 	// missing Close calls on a best-effort basis.
-	f.cleanup = runtime.AddCleanup(
-		f,
-		func(fileName string) {
-			panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", fileName))
-		},
-		f.Name(),
-	)
+	f.cleanup = runtime.AddCleanup(f, func(fileName string) {
+		panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", fileName))
+	}, f.Name())
 
 	return f, nil
 }
