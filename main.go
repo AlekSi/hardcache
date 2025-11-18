@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -33,6 +34,12 @@ var cli struct {
 
 // GOCACHE returns the Go build cache directory.
 var GOCACHE = sync.OnceValue(func() string {
+	// in theory, someone might not have go in the PATH
+	if v := os.Getenv("GOCACHE"); v != "" {
+		return v
+	}
+
+	// that handles `go env -w` and the default value
 	b, err := exec.Command("go", "env", "GOCACHE").Output()
 	if err != nil {
 		panic(err)
