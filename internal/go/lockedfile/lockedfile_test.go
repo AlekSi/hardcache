@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// js and wasip1 do not support inter-process file locking.
+//
 //go:build !js && !wasip1
 
 package lockedfile_test
@@ -112,9 +114,9 @@ func TestReadWaitsForLock(t *testing.T) {
 	t.Logf("WriteString(%q) = <nil>", part1)
 
 	wait := mustBlock(t, "Read", func() {
-		b, err2 := lockedfile.Read(path)
-		if err2 != nil {
-			t.Errorf("Read: %v", err2)
+		b, err := lockedfile.Read(path)
+		if err != nil {
+			t.Errorf("Read: %v", err)
 			return
 		}
 

@@ -5,9 +5,42 @@
 package mmap
 
 import (
+	"fmt"
 	"os"
+	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 func mmapFile(f *os.File) (Data, error) {
-	panic("not implemented yet")
+	st, err := f.Stat()
+	if err != nil {
+		return Data{}, err
+	}
+	size := st.Size()
+	if size == 0 {
+		return Data{f, nil}, nil
+	}
+	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, windows.PAGE_READONLY, 0, 0, nil)
+	if err != nil {
+		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
+	}
+
+	addr, err := windows.MapViewOfFile(h, windows.FILE_MAP_READ, 0, 0, 0)
+	if err != nil {
+		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
+	}
+	var info windows.MemoryBasicInformation
+	err = windows.VirtualQuery(addr, &info, unsafe.Sizeof(info))
+	if err != nil {
+		return Data{}, fmt.Errorf("VirtualQuery %s: %w", f.Name(), err)
+	}
+	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), int(info.RegionSize))
+	if len(data) < int(size) {
+		// In some cases, especially on 386, we may not receive a in incomplete mapping:
+		// one that is shorter than the file itself. Return an error in those cases because
+		// incomplete mappings are not useful.
+		return Data{}, fmt.Errorf("mmapFile: received incomplete mapping of file")
+	}
+	return Data{f, data[:int(size)]}, nil
 }

@@ -1,4 +1,4 @@
-// go:build ignore
+//go:build ignore
 
 // This program is used to save and apply file modification times for hardcache testing.
 package main
