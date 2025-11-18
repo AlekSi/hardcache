@@ -2,13 +2,13 @@ package local
 
 import (
 	"encoding/hex"
+	"log/slog"
 	"math"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/neilotoole/slogt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,6 +26,17 @@ func setup(t testing.TB) string {
 	require.NoError(t, err, "%s", b)
 
 	return filepath.Join(dst, "local")
+}
+
+// logger returns a [slog.Logger] for the given test.
+func logger(t testing.TB) *slog.Logger {
+	t.Helper()
+
+	opts := &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	}
+	return slog.New(slog.NewTextHandler(t.Output(), opts))
 }
 
 // fromHex decodes a hex string to a byte array.
@@ -101,7 +112,7 @@ func TestCache(t *testing.T) {
 func TestTrimNoop(t *testing.T) {
 	t.Parallel()
 
-	c, err := New(setup(t), nil, nil, slogt.New(t))
+	c, err := New(setup(t), nil, nil, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -113,7 +124,7 @@ func TestTrimCutoffNone(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	c, err := New(setup(t), &cutoff, nil, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -125,7 +136,7 @@ func TestTrimCutoffAll(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	c, err := New(setup(t), &cutoff, nil, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -137,7 +148,7 @@ func TestTrimCutoffPart(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, slogt.New(t))
+	c, err := New(setup(t), &cutoff, nil, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -149,7 +160,7 @@ func TestTrimSizeNone(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(math.MaxInt64)
-	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	c, err := New(setup(t), nil, &maxSize, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -161,7 +172,7 @@ func TestTrimSizeAll(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(0)
-	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	c, err := New(setup(t), nil, &maxSize, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -173,7 +184,7 @@ func TestTrimSizePart(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(50_000_000)
-	c, err := New(setup(t), nil, &maxSize, slogt.New(t))
+	c, err := New(setup(t), nil, &maxSize, logger(t))
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
