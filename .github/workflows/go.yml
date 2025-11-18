@@ -35,12 +35,14 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Initialize environment
+        run: make init
+
       - name: Run tests
         run: make test
 
       - name: Check dirtiness
         run: |
-          go mod tidy
           gofmt -s -w .
           git status
           git diff --exit-code
