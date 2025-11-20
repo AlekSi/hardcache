@@ -23,10 +23,13 @@ import (
 var cli struct {
 	Local struct {
 		Dir       string        `default:"${local_dir}" type:"path" help:"Directory to use."`
-		UnusedFor unit.Duration `default:"5d" help:"Remove entries unused for this duration."`
+		UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration; pass 0 to disable."`
 		MaxSize   unit.Bytes    `default:"0GB" help:"Remove entries if cache size is larger than this."`
 
-		Trim struct{} `cmd:"" help:"Trim local cache."`
+		Trim  struct{} `cmd:"" help:"Trim local cache."`
+		Trimd struct {
+			Interval unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
+		} `cmd:"" help:"Trim local cache continuously."`
 	} `cmd:""`
 
 	Debug bool `help:"Enable debug logging."`
@@ -48,16 +51,11 @@ var GOCACHE = sync.OnceValue(func() string {
 	return strings.TrimSpace(string(b))
 })
 
-// localCache returns local cache, configured according to CLI flags.
-func localCache(l *slog.Logger) (*local.Cache, error) {
+// localTrim force-trims local cache according to CLI flags.
+func localTrim(l *slog.Logger) error {
 	var cutoff *time.Time
 	if cli.Local.UnusedFor > 0 {
-		d := time.Duration(cli.Local.UnusedFor)
-		if d > 5*unit.Day {
-			l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
-		}
-
-		c := time.Now().Add(-d)
+		c := time.Now().Add(-time.Duration(cli.Local.UnusedFor))
 		cutoff = &c
 	}
 
@@ -67,7 +65,18 @@ func localCache(l *slog.Logger) (*local.Cache, error) {
 		maxSize = &m
 	}
 
-	return local.New(cli.Local.Dir, cutoff, maxSize, l)
+	c, err := local.New(cli.Local.Dir, cutoff, maxSize, l)
+	if err != nil {
+		return err
+	}
+
+	before, freed := c.TrimForce()
+	l.Info(
+		"Local cache trimmed",
+		slog.Int64("before", int64(unit.Bytes(before))), slog.Int64("freed", int64(unit.Bytes(freed))),
+	)
+
+	return nil
 }
 
 func main() {
@@ -84,7 +93,7 @@ func main() {
 	kongCtx := kong.Parse(&cli, opts...)
 
 	log.SetPrefix("hardcache: ")
-	log.SetFlags(0)
+	log.SetFlags(log.Lmicroseconds)
 
 	if cli.Debug {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -95,19 +104,27 @@ func main() {
 	ctx, cancel := sigterm.Ctx(context.Background())
 	defer cancel()
 
-	_ = ctx
-
 	switch kongCtx.Command() {
 	case "local trim":
-		c, err := localCache(l)
+		if time.Duration(cli.Local.UnusedFor) > 5*24*time.Hour {
+			l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
+		}
+
+		err := localTrim(l)
 		kongCtx.FatalIfErrorf(err)
 
-		before, freed := c.TrimForce()
+	case "local trimd":
+		for {
+			err := localTrim(l)
+			kongCtx.FatalIfErrorf(err)
 
-		l.Info(
-			"Local cache trimmed",
-			slog.Int64("before", int64(unit.Bytes(before))), slog.Int64("freed", int64(unit.Bytes(freed))),
-		)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Duration(cli.Local.Trimd.Interval)):
+				// nothing
+			}
+		}
 
 	default:
 		kongCtx.Fatalf("unknown command: %q", kongCtx.Command())
