@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,9 +23,9 @@ import (
 //nolint:vet // for readability
 var cli struct {
 	Local struct {
-		Dir       string        `default:"${local_dir}" type:"path" help:"Directory to use."`
-		UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration; pass 0 to disable."`
-		MaxSize   unit.Bytes    `default:"0GB" help:"Remove entries if cache size is larger than this."`
+		Dir       string        `default:"${local_dir_default}" type:"path" help:"Directory to use."`
+		UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration. Pass 0 to disable."`
+		MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
 
 		Trim  struct{} `cmd:"" help:"Trim local cache."`
 		Trimd struct {
@@ -60,9 +61,24 @@ func localTrim(l *slog.Logger) error {
 	}
 
 	var maxSize *int64
-	if cli.Local.MaxSize > 0 {
-		m := int64(cli.Local.MaxSize)
-		maxSize = &m
+	maxSizeS, p := strings.CutSuffix(cli.Local.MaxSize, "%")
+	maxSizeI, err := strconv.ParseInt(maxSizeS, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if p {
+		var total int64
+		if total, _, err = local.DiskInfo(cli.Local.Dir); err != nil {
+			return err
+		}
+
+		maxSizeI = total * maxSizeI / 100
+		l.Debug("Calculated max size from percentage", slog.Int64("disk_size", total), slog.Int64("max_size", maxSizeI))
+	}
+
+	if maxSizeI > 0 {
+		maxSize = &maxSizeI
 	}
 
 	c, err := local.New(cli.Local.Dir, cutoff, maxSize, l)
@@ -84,10 +100,15 @@ func main() {
 		kong.Name("hardcache"),
 		kong.Description("Tool for managing the Go build cache."),
 		kong.Vars{
-			"local_dir": GOCACHE(),
+			"local_dir_default": GOCACHE(),
+			"local_max_size_help": "Remove entries, starting from least recently used, " +
+				"if cache size is larger than this value. " +
+				"Supports MiB, GB, etc. suffixes, or percentage of the total disk space (e.g., 5%). " +
+				"Pass 0 to disable.",
 		},
 		kong.ConfigureHelp(kong.HelpOptions{
-			Tree: true,
+			Tree:           true,
+			WrapUpperBound: 120,
 		}),
 	}
 	kongCtx := kong.Parse(&cli, opts...)
