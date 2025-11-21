@@ -76,7 +76,7 @@ func localTrim(l *slog.Logger) error {
 			return err
 		}
 
-		b = unit.Bytes(total * int64(p) / 100)
+		b = unit.Bytes(total / 100 * int64(p))
 
 		l.Debug(
 			"Calculated max size from percentage of total disk size",
