@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -53,13 +54,17 @@ var GOCACHE = sync.OnceValue(func() string {
 
 // localTrim force-trims local cache according to CLI flags.
 func localTrim(l *slog.Logger) error {
+	if cli.Local.UnusedFor < 0 {
+		return fmt.Errorf("--unused-for cannot be negative: %d", cli.Local.UnusedFor)
+	}
+
 	var cutoff *time.Time
 	if cli.Local.UnusedFor > 0 {
 		c := time.Now().Add(-time.Duration(cli.Local.UnusedFor))
 		cutoff = &c
 	}
 
-	var maxSize *int64
+	var b unit.Bytes
 	if strings.HasSuffix(cli.Local.MaxSize, "%") {
 		var p unit.Percentage
 		if err := p.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
@@ -71,7 +76,7 @@ func localTrim(l *slog.Logger) error {
 			return err
 		}
 
-		b := unit.Bytes(total * int64(p) / 100)
+		b = unit.Bytes(total * int64(p) / 100)
 
 		l.Debug(
 			"Calculated max size from percentage of total disk size",
@@ -80,14 +85,20 @@ func localTrim(l *slog.Logger) error {
 			slog.Int64("max_size_bytes", int64(b)),
 			slog.String("max_size", b.String()),
 		)
-		maxSize = (*int64)(&b)
 	} else {
-		var b unit.Bytes
 		if err := b.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
 			return err
 		}
 
 		l.Debug("Max size", slog.Int64("max_size_bytes", int64(b)), slog.String("max_size", b.String()))
+	}
+
+	if b < 0 {
+		return fmt.Errorf("--max-size cannot be negative: %d", b)
+	}
+
+	var maxSize *int64
+	if b > 0 {
 		maxSize = (*int64)(&b)
 	}
 
