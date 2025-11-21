@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -61,24 +60,35 @@ func localTrim(l *slog.Logger) error {
 	}
 
 	var maxSize *int64
-	maxSizeS, p := strings.CutSuffix(cli.Local.MaxSize, "%")
-	maxSizeI, err := strconv.ParseInt(maxSizeS, 10, 64)
-	if err != nil {
-		return err
-	}
-
-	if p {
-		var total int64
-		if total, _, err = local.DiskInfo(cli.Local.Dir); err != nil {
+	if strings.HasSuffix(cli.Local.MaxSize, "%") {
+		var p unit.Percentage
+		if err := p.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
 			return err
 		}
 
-		maxSizeI = total * maxSizeI / 100
-		l.Debug("Calculated max size from percentage", slog.Int64("disk_size", total), slog.Int64("max_size", maxSizeI))
-	}
+		total, _, err := local.DiskInfo(cli.Local.Dir)
+		if err != nil {
+			return err
+		}
 
-	if maxSizeI > 0 {
-		maxSize = &maxSizeI
+		b := unit.Bytes(total * int64(p) / 100)
+
+		l.Debug(
+			"Calculated max size from percentage of total disk size",
+			slog.Int64("disk_size_bytes", total),
+			slog.String("disk_size", unit.Bytes(total).String()),
+			slog.Int64("max_size_bytes", int64(b)),
+			slog.String("max_size", b.String()),
+		)
+		maxSize = (*int64)(&b)
+	} else {
+		var b unit.Bytes
+		if err := b.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
+			return err
+		}
+
+		l.Debug("Max size", slog.Int64("max_size_bytes", int64(b)), slog.String("max_size", b.String()))
+		maxSize = (*int64)(&b)
 	}
 
 	c, err := local.New(cli.Local.Dir, cutoff, maxSize, l)
@@ -87,9 +97,13 @@ func localTrim(l *slog.Logger) error {
 	}
 
 	before, freed := c.TrimForce()
+	l.Debug(
+		"Local cache trimmed",
+		slog.Int64("before_bytes", before), slog.Int64("freed_bytes", freed),
+	)
 	l.Info(
 		"Local cache trimmed",
-		slog.Int64("before", int64(unit.Bytes(before))), slog.Int64("freed", int64(unit.Bytes(freed))),
+		slog.String("before", unit.Bytes(before).String()), slog.String("freed", unit.Bytes(freed).String()),
 	)
 
 	return nil

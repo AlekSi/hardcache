@@ -1,3 +1,4 @@
+// Package unit provides utilities for parsing and handling various units of measurement.
 package unit
 
 import (
