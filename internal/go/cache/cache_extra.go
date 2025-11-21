@@ -66,9 +66,9 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 		l.Debug(
 			"trim.txt updated",
-			slog.Int64("before", before),
-			slog.Int64("after", before-freed),
-			slog.Int64("freed", freed),
+			slog.Int64("before_bytes", before),
+			slog.Int64("after_bytes", before-freed),
+			slog.Int64("freed_bytes", freed),
 		)
 	}()
 
