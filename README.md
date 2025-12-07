@@ -59,7 +59,7 @@ until the cache is small enough.
 
 Maximum cache size can also be configured as a percentage of the total disk space, for example: `--max-size=5%`.
 
-#### Background trimming
+#### Continuous trimming
 
 Both problems above can be solved by running trimming continuously:
 
