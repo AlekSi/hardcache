@@ -31,7 +31,7 @@ It can be overridden with `--dir` flag:
 hardcache local --dir=/tmp/cache ...
 ```
 
-#### Trim local cache
+#### Manual trimming
 
 Go standard build cache does not support [disabling trimming](https://github.com/golang/go/issues/69565),
 [trimming based on disk usage](https://github.com/golang/go/issues/29561),
@@ -56,6 +56,10 @@ hardcache local trim --unused-for=2w --max-size=10GB
 This command would first remove cache entries that were unused for 2 weeks.
 Then, if the remaining cache size is greater than 10GB, it will remove the least-recently used items
 until the cache is small enough.
+
+#### Background trimming
+
+TODO
 
 ## Credits
 
