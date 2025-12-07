@@ -8,9 +8,6 @@ import (
 	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
-// Day is 24 hours.
-const Day = 24 * time.Hour
-
 // Duration is a wrapper around time.Duration that supports parsing days.
 type Duration time.Duration
 

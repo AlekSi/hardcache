@@ -2,7 +2,15 @@ module github.com/AlekSi/hardcache
 
 go 1.25
 
-toolchain go1.25.4
+toolchain go1.25.5
+
+// https://go.dev/doc/godebug#go-120
+// https://pkg.go.dev/archive/tar#Reader.Next
+// https://pkg.go.dev/archive/zip#OpenReader
+godebug (
+	tarinsecurepath=0
+	zipinsecurepath=0
+)
 
 require (
 	github.com/AlekSi/lazyerrors v0.5.0
