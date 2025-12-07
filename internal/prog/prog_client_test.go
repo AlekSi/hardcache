@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/AlekSi/hardcache/internal/go/cacheprog"
 	"github.com/AlekSi/lazyerrors"
+
+	"github.com/AlekSi/hardcache/internal/go/cacheprog"
 )
 
 // client is a simple GOCACHEPROG client for use in tests.

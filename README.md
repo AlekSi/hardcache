@@ -1,5 +1,7 @@
 # hardcache
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/AlekSi/hardcache.svg)](https://pkg.go.dev/github.com/AlekSi/hardcache)
+
 ![Hardcache logo](hardcache.jpeg)
 
 Hardcache is a tool for managing the Go build cache.

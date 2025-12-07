@@ -18,7 +18,7 @@ import (
 )
 
 // Prog provides GOCACHEPROG implementation for the given [cache.Cache]
-// (that should be both thread-safe and safe to use from multiple processes).
+// (that should safe to use from multiple goroutines and multiple processes).
 //
 //nolint:vet // for readability
 type Prog struct {
