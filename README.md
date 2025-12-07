@@ -47,7 +47,7 @@ There are, however, two downsides:
    you have to run `hardcache local trim` manually at least every 23 hours (for example, twice per day)
    to prevent the standard trimming mechanism from triggering.
 
-Those problems are expected to be fixed in the future.
+See the next section for the solution to those problems.
 
 ```
 hardcache local trim --unused-for=2w --max-size=10GB
@@ -57,9 +57,17 @@ This command would first remove cache entries that were unused for 2 weeks.
 Then, if the remaining cache size is greater than 10GB, it will remove the least-recently used items
 until the cache is small enough.
 
+Maximum cache size can also be configured as a percentage of the total disk space, for example: `--max-size=5%`.
+
 #### Background trimming
 
-TODO
+Both problems above can be solved by running trimming continuously:
+
+```
+hardcache local trimd --unused-for=2w --max-size=10GB --interval=1h
+```
+
+Using `trimd` subcommand instead of `trim` triggers trimming every specified interval.
 
 ## Credits
 
