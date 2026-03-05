@@ -1,0 +1,27 @@
+---
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    assignees: [AlekSi]
+    open-pull-requests-limit: 20
+    groups:
+      github-actions:
+        patterns: ["*"]
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "01:42"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    assignees: [AlekSi]
+    open-pull-requests-limit: 20
+    groups:
+      gomod:
+        patterns: ["*"]
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "01:42"
