@@ -1,6 +1,6 @@
 module github.com/AlekSi/hardcache
 
-go 1.25
+go 1.25.0
 
 // https://go.dev/doc/godebug#go-120
 // https://pkg.go.dev/archive/tar#Reader.Next
@@ -16,7 +16,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/stretchr/testify v1.11.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.42.0
 )
 
 require (
