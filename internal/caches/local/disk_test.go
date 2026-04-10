@@ -4,7 +4,8 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/AlekSi/shoulda"
+	"github.com/AlekSi/shoulda/cmp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func TestDiskInfo(t *testing.T) {
 
 	t.Logf("\n           total: %dM,    free: %dM", total/1024/1024, free/1024/1024)
 
-	assert.Positive(t, total)
-	assert.Positive(t, free)
-	assert.Greater(t, total, free)
+	shoulda.ReturnTrue(t, total, cmp.Greater, 0)
+	shoulda.ReturnTrue(t, free, cmp.Greater, 0)
+	shoulda.ReturnTrue(t, total, cmp.Greater, free)
 }

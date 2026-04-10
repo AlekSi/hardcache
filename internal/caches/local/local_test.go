@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/AlekSi/shoulda"
+	"github.com/AlekSi/shoulda/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -116,8 +118,8 @@ func TestTrimNoop(t *testing.T) {
 	require.NoError(t, err)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, -1, before)
-	assert.EqualValues(t, 0, freed)
+	shoulda.ReturnTrue(t, before, cmp.Equal, -1)
+	shoulda.ReturnTrue(t, freed, cmp.Equal, 0)
 }
 
 func TestTrimCutoffNone(t *testing.T) {
