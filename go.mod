@@ -2,7 +2,7 @@ module github.com/AlekSi/hardcache
 
 go 1.26
 
-toolchain go1.26.2
+toolchain go1.26.3
 
 // https://go.dev/doc/godebug#go-120
 // https://pkg.go.dev/archive/tar#Reader.Next
@@ -12,16 +12,14 @@ godebug (
 	zipinsecurepath=0
 )
 
-replace github.com/AlekSi/shoulda => ../shoulda
-
 require (
-	github.com/AlekSi/lazyerrors v0.5.0
-	github.com/AlekSi/shoulda v0.0.0-00010101000000-000000000000
-	github.com/alecthomas/kong v1.14.0
+	github.com/AlekSi/lazyerrors v0.6.0
+	github.com/AlekSi/shoulda v0.0.0-20260512161828-3f1a6205d664
+	github.com/alecthomas/kong v1.15.0
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/stretchr/testify v1.11.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.44.0
 )
 
 require (
