@@ -1,6 +1,6 @@
 module github.com/AlekSi/hardcache
 
-go 1.26
+go 1.25.0
 
 toolchain go1.26.3
 
@@ -14,7 +14,7 @@ godebug (
 
 require (
 	github.com/AlekSi/lazyerrors v0.6.0
-	github.com/AlekSi/shoulda v0.0.0-20260512161828-3f1a6205d664
+	github.com/AlekSi/shoulda v0.0.0-20260512184202-90296728414d
 	github.com/alecthomas/kong v1.15.0
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/stretchr/testify v1.11.1

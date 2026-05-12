@@ -1,7 +1,7 @@
 github.com/AlekSi/lazyerrors v0.6.0 h1:TX4iCP7N+YOuOmUl6Gv5OQ7brhPzPPrSsEAm+at+avk=
 github.com/AlekSi/lazyerrors v0.6.0/go.mod h1:TresBdOmCoC169IDo09YbrYUDXiqRwlLpInBeS1qD2g=
-github.com/AlekSi/shoulda v0.0.0-20260512161828-3f1a6205d664 h1:+9lHGBM7WMgnomITmZL892SI07D3vnCegF1VouXSydw=
-github.com/AlekSi/shoulda v0.0.0-20260512161828-3f1a6205d664/go.mod h1:KWJR3KfSauCVWX2/MEoofulvkLMTWN2ew8SfaHAdohw=
+github.com/AlekSi/shoulda v0.0.0-20260512184202-90296728414d h1:+1oFTJXeqDo0mKvIgFSbgG1WIz5t5nl14dX0EylSVK0=
+github.com/AlekSi/shoulda v0.0.0-20260512184202-90296728414d/go.mod h1:QH+MbmZ0XGLxMGQqQLpWokX+oKxrvJq8QHl9UDwPiHk=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/kong v1.15.0 h1:BVJstKbpO73zKpmIu+m/aLRrNmWwxXPIGTNin9VmLVI=
