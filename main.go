@@ -23,13 +23,21 @@ import (
 //nolint:vet // for readability
 var cli struct {
 	Local struct {
-		Dir       string        `default:"${local_dir_default}" type:"path" help:"Directory to use."`
-		UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration. Pass 0 to disable."`
-		MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
+		Dir string `default:"${local_dir_default}" type:"path" help:"Directory to use."`
 
-		Trim  struct{} `cmd:"" help:"Trim local cache."`
+		Status struct {
+			JSON bool `help:"Output as compact JSON."`
+		} `cmd:"" help:"Show local cache status."`
+
+		Trim struct {
+			UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration. Pass 0 to disable."`
+			MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
+		} `cmd:"" help:"Trim local cache."`
+
 		Trimd struct {
-			Interval unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
+			UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration. Pass 0 to disable."`
+			MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
+			Interval  unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
 		} `cmd:"" help:"Trim local cache continuously."`
 	} `cmd:""`
 
@@ -52,26 +60,26 @@ var GOCACHE = sync.OnceValue(func() string {
 	return strings.TrimSpace(string(b))
 })
 
-// localTrim force-trims local cache according to CLI flags.
-func localTrim(l *slog.Logger) error {
-	if cli.Local.UnusedFor < 0 {
-		return fmt.Errorf("--unused-for cannot be negative: %d", cli.Local.UnusedFor)
+// localTrim force-trims local cache according to parameters.
+func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog.Logger) error {
+	if unusedFor < 0 {
+		return fmt.Errorf("--unused-for cannot be negative: %d", unusedFor)
 	}
 
 	var cutoff *time.Time
-	if cli.Local.UnusedFor > 0 {
-		c := time.Now().Add(-time.Duration(cli.Local.UnusedFor))
+	if unusedFor > 0 {
+		c := time.Now().Add(-time.Duration(unusedFor))
 		cutoff = &c
 	}
 
 	var b unit.Bytes
-	if strings.HasSuffix(cli.Local.MaxSize, "%") {
+	if strings.HasSuffix(maxSizeValue, "%") {
 		var p unit.Percentage
-		if err := p.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
+		if err := p.UnmarshalText([]byte(maxSizeValue)); err != nil {
 			return err
 		}
 
-		total, _, err := local.DiskInfo(cli.Local.Dir)
+		total, _, err := local.DiskInfo(dir)
 		if err != nil {
 			return err
 		}
@@ -86,7 +94,7 @@ func localTrim(l *slog.Logger) error {
 			slog.String("max_size", b.String()),
 		)
 	} else {
-		if err := b.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
+		if err := b.UnmarshalText([]byte(maxSizeValue)); err != nil {
 			return err
 		}
 
@@ -102,7 +110,7 @@ func localTrim(l *slog.Logger) error {
 		maxSize = (*int64)(&b)
 	}
 
-	c, err := local.New(cli.Local.Dir, cutoff, maxSize, l)
+	c, err := local.New(dir, cutoff, maxSize, l)
 	if err != nil {
 		return err
 	}
@@ -151,17 +159,21 @@ func main() {
 	defer cancel()
 
 	switch kongCtx.Command() {
+	case "local status":
+		err := localStatus(cli.Local.Dir, cli.Local.Status.JSON, l)
+		kongCtx.FatalIfErrorf(err)
+
 	case "local trim":
-		if time.Duration(cli.Local.UnusedFor) > 5*24*time.Hour {
+		if time.Duration(cli.Local.Trim.UnusedFor) > 5*24*time.Hour {
 			l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
 		}
 
-		err := localTrim(l)
+		err := localTrim(cli.Local.Dir, cli.Local.Trim.UnusedFor, cli.Local.Trim.MaxSize, l)
 		kongCtx.FatalIfErrorf(err)
 
 	case "local trimd":
 		for {
-			err := localTrim(l)
+			err := localTrim(cli.Local.Dir, cli.Local.Trimd.UnusedFor, cli.Local.Trimd.MaxSize, l)
 			kongCtx.FatalIfErrorf(err)
 
 			select {

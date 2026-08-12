@@ -20,6 +20,14 @@ import (
 // EntryNotFoundError is exported for use in other packages.
 type EntryNotFoundError = entryNotFoundError
 
+// Stats describes cache state derived from a full directory scan.
+type Stats struct {
+	Entries int
+	Bytes   int64
+	Oldest  *time.Time
+	Newest  *time.Time
+}
+
 // fileInfo represents information about a file or directory with executable in the cache.
 // The order of fields is weird to make struct smaller.
 type fileInfo struct {
@@ -126,6 +134,29 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 	}
 
 	return
+}
+
+// Stats scans the cache directory and returns aggregate statistics.
+func (c *DiskCache) Stats(l *slog.Logger) Stats {
+	files, bytes := c.read(l)
+	stats := Stats{
+		Entries: len(files),
+		Bytes:   bytes,
+	}
+
+	for _, fi := range files {
+		modTime := fi.ModTime
+		if stats.Oldest == nil || modTime.Before(*stats.Oldest) {
+			v := modTime
+			stats.Oldest = &v
+		}
+		if stats.Newest == nil || modTime.After(*stats.Newest) {
+			v := modTime
+			stats.Newest = &v
+		}
+	}
+
+	return stats
 }
 
 // read reads the entire cache directory.

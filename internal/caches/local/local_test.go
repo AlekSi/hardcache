@@ -182,3 +182,28 @@ func TestTrimSizePart(t *testing.T) {
 	shoulda.BeEqual(t, freed, int64(60_023_595))
 	shoulda.BeLess(t, before-freed, maxSize)
 }
+
+func TestStatusFixture(t *testing.T) {
+	t.Parallel()
+
+	c := musta.NotFail(New(setup(t), nil, nil, logger(t)))(t)
+
+	stats := c.Status()
+	shoulda.BeEqual(t, stats.Entries, 1219)
+	shoulda.BeEqual(t, stats.Bytes, int64(109_518_524))
+	musta.NotBeZero(t, stats.Oldest)
+	musta.NotBeZero(t, stats.Newest)
+	shoulda.CompareLess(t, *stats.Oldest, *stats.Newest, time.Time.Compare)
+}
+
+func TestStatusEmpty(t *testing.T) {
+	t.Parallel()
+
+	c := musta.NotFail(New(t.TempDir(), nil, nil, logger(t)))(t)
+
+	stats := c.Status()
+	shoulda.BeEqual(t, stats.Entries, 0)
+	shoulda.BeEqual(t, stats.Bytes, int64(0))
+	shoulda.BeZero(t, stats.Oldest)
+	shoulda.BeZero(t, stats.Newest)
+}

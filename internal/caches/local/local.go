@@ -20,6 +20,14 @@ type Cache struct {
 	l       *slog.Logger
 }
 
+// Stats describes local cache state.
+type Stats struct {
+	Entries int
+	Bytes   int64
+	Oldest  *time.Time
+	Newest  *time.Time
+}
+
 // New creates a new [Cache].
 func New(dir string, cutoff *time.Time, maxSize *int64, l *slog.Logger) (*Cache, error) {
 	dc, err := cache.Open(dir)
@@ -66,6 +74,17 @@ func (c *Cache) FuzzDir() string {
 // It ignores the last trim time, but updates it.
 func (c *Cache) TrimForce() (before, freed int64) {
 	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)
+}
+
+// Status returns current local cache statistics.
+func (c *Cache) Status() Stats {
+	s := c.dc.Stats(c.l)
+	return Stats{
+		Entries: s.Entries,
+		Bytes:   s.Bytes,
+		Oldest:  s.Oldest,
+		Newest:  s.Newest,
+	}
 }
 
 // check interfaces
