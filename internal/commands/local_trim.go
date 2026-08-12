@@ -75,13 +75,50 @@ func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog
 	}
 
 	before, freed := c.TrimForce()
+	stats := c.Status()
+	total, free, err := local.DiskInfo(dir)
+	if err != nil {
+		return err
+	}
+
+	status := newLocalStatusOutput(dir, stats, total, free)
+	if before < 0 {
+		before = stats.Bytes + freed
+	}
+
+	oldest, newest := "n/a", "n/a"
+	if status.Cache.Oldest != nil {
+		oldest = *status.Cache.Oldest
+	}
+	if status.Cache.Newest != nil {
+		newest = *status.Cache.Newest
+	}
+
 	l.Debug(
 		"Local cache trimmed",
-		slog.Int64("before_bytes", before), slog.Int64("freed_bytes", freed),
+		slog.Int64("before_bytes", before),
+		slog.Int64("after_bytes", stats.Bytes),
+		slog.Int64("freed_bytes", freed),
 	)
 	l.Info(
 		"Local cache trimmed",
-		slog.String("before", unit.Bytes(before).String()), slog.String("freed", unit.Bytes(freed).String()),
+		slog.String("directory", status.Directory),
+		slog.String("before", fmt.Sprintf("%s (%d bytes)", unit.Bytes(before), before)),
+		slog.String("freed", fmt.Sprintf("%s (%d bytes)", unit.Bytes(freed), freed)),
+		slog.Group("cache",
+			slog.Int("entries", status.Cache.Entries),
+			slog.String("size", fmt.Sprintf("%s (%d bytes)", status.Cache.Human, status.Cache.Bytes)),
+			slog.String("oldest", oldest),
+			slog.String("newest", newest),
+		),
+		slog.Group("disk",
+			slog.String("total", fmt.Sprintf("%s (%d bytes)", status.Disk.TotalHuman, status.Disk.TotalBytes)),
+			slog.String("used", fmt.Sprintf("%s (%d bytes)", status.Disk.UsedHuman, status.Disk.UsedBytes)),
+			slog.String("used_percent", fmt.Sprintf("%.2f%%", status.Disk.UsedPercent)),
+			slog.String("free", fmt.Sprintf("%s (%d bytes)", status.Disk.FreeHuman, status.Disk.FreeBytes)),
+			slog.String("free_percent", fmt.Sprintf("%.2f%%", status.Disk.FreePercent)),
+		),
+		slog.String("cache_of_total_disk", fmt.Sprintf("%.2f%%", status.CacheOfTotalPercent)),
 	)
 
 	return nil
