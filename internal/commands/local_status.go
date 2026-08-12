@@ -1,11 +1,11 @@
-package main
+package commands
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
-	"os"
 	"time"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
@@ -34,7 +34,8 @@ type localStatusOutput struct {
 	CacheOfTotalPercent float64 `json:"cache_of_total_percent"`
 }
 
-func localStatus(dir string, asJSON bool, l *slog.Logger) error {
+// LocalStatus writes local cache and disk usage statistics to out.
+func LocalStatus(dir string, asJSON bool, out io.Writer, l *slog.Logger) error {
 	c, err := local.New(dir, nil, nil, l)
 	if err != nil {
 		return err
@@ -48,10 +49,10 @@ func localStatus(dir string, asJSON bool, l *slog.Logger) error {
 
 	output := newLocalStatusOutput(dir, stats, total, free)
 	if asJSON {
-		return json.NewEncoder(os.Stdout).Encode(output)
+		return json.NewEncoder(out).Encode(output)
 	}
 
-	_, err = fmt.Fprint(os.Stdout, output)
+	_, err = fmt.Fprint(out, output)
 	return err
 }
 
