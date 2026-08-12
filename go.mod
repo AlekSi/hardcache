@@ -1,8 +1,8 @@
 module github.com/AlekSi/hardcache
 
-go 1.25.0
+go 1.26
 
-toolchain go1.26.3
+toolchain go1.26.5
 
 // https://go.dev/doc/godebug#go-120
 // https://pkg.go.dev/archive/tar#Reader.Next
@@ -14,7 +14,7 @@ godebug (
 
 require (
 	github.com/AlekSi/lazyerrors v0.6.0
-	github.com/AlekSi/shoulda v0.0.0-20260512184202-90296728414d
+	github.com/AlekSi/shoulda v0.0.0-20260812055123-b29ca4861702
 	github.com/alecthomas/kong v1.15.0
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/stretchr/testify v1.11.1
@@ -25,5 +25,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sanity-io/litter v1.5.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
