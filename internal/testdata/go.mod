@@ -2,6 +2,6 @@
 
 module github.com/AlekSi/hardcache/internal/testdata
 
-go 1.25
+go 1.26
 
 tool github.com/AlekSi/hardcache/internal/testdata/mytool

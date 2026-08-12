@@ -4,21 +4,21 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/AlekSi/shoulda"
+	"github.com/AlekSi/shoulda/musta"
 )
 
 func TestDiskInfo(t *testing.T) {
 	b, err := exec.Command("df", "-m", "/").CombinedOutput()
-	require.NoError(t, err)
+	musta.NoError(t, err)
 	t.Logf("\n%s", b)
 
 	total, free, err := DiskInfo("/")
-	require.NoError(t, err)
+	musta.NoError(t, err)
 
 	t.Logf("\n           total: %dM,    free: %dM", total/1024/1024, free/1024/1024)
 
-	assert.Positive(t, total)
-	assert.Positive(t, free)
-	assert.Greater(t, total, free)
+	shoulda.BeGreater(t, total, 0)
+	shoulda.BeGreater(t, free, 0)
+	shoulda.BeGreater(t, total, free)
 }

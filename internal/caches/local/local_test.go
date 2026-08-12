@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/AlekSi/shoulda"
+	"github.com/AlekSi/shoulda/musta"
 
 	"github.com/AlekSi/hardcache/internal/go/cache"
 )
@@ -23,7 +23,7 @@ func setup(t testing.TB) string {
 	dst := t.TempDir()
 
 	b, err := exec.Command("cp", "-a", src, dst).CombinedOutput()
-	require.NoError(t, err, "%s", b)
+	musta.NoErrorf(t, err, "%s", b)
 
 	return filepath.Join(dst, "local")
 }
@@ -45,8 +45,8 @@ func fromHex(t testing.TB, s string) [cache.HashSize]byte {
 
 	var res [cache.HashSize]byte
 	n, err := hex.Decode(res[:], []byte(s))
-	require.NoError(t, err)
-	require.Equal(t, n, cache.HashSize)
+	musta.NoError(t, err)
+	musta.BeEqual(t, n, cache.HashSize)
 
 	return res
 }
@@ -68,15 +68,13 @@ func TestCache(t *testing.T) {
 
 	dir := setup(t)
 
-	c, err := cache.Open(dir)
-	require.NoError(t, err)
+	c := musta.NotFail(cache.Open(dir))(t)
 
 	t.Cleanup(func() {
-		require.NoError(t, c.Close())
+		musta.NoError(t, c.Close())
 	})
 
-	actual, err := c.Get(actionID(t, "01a8b978c9044aabe4e554ee2d630f5437162fd385e60fbaf51492b4be15c226"))
-	require.NoError(t, err)
+	actual := musta.NotFail(c.Get(actionID(t, "01a8b978c9044aabe4e554ee2d630f5437162fd385e60fbaf51492b4be15c226")))(t)
 
 	expected := cache.Entry{
 		OutputID: outputID(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
@@ -84,20 +82,18 @@ func TestCache(t *testing.T) {
 		Time:     time.Date(2025, time.November, 17, 17, 13, 1, 426224000, time.UTC).Local(),
 	}
 
-	assert.Equal(t, expected.Time, actual.Time)
-	assert.Equal(t, expected, actual)
+	shoulda.BeDeepEqual(t, actual.Time, expected.Time)
+	shoulda.BeDeepEqual(t, actual, expected)
 
-	actual, err = c.Get(actionID(t, "fd8792322c0942921f5dca60ae1196d10c2195bfadef68f80f94de000625531c"))
-	require.NoError(t, err)
+	actual = musta.NotFail(c.Get(actionID(t, "fd8792322c0942921f5dca60ae1196d10c2195bfadef68f80f94de000625531c")))(t)
 
 	expected.Time = time.Date(2025, time.November, 17, 17, 13, 2, 227666000, time.UTC).Local()
 
-	assert.Equal(t, expected.Time, actual.Time)
-	assert.Equal(t, expected, actual)
+	shoulda.BeDeepEqual(t, actual.Time, expected.Time)
+	shoulda.BeDeepEqual(t, actual, expected)
 
 	// executable
-	actual, err = c.Get(actionID(t, "b774285e0fffc3f1827be05e08ea22244e40ae09ca8359e45e329740aaa06dba"))
-	require.NoError(t, err)
+	actual = musta.NotFail(c.Get(actionID(t, "b774285e0fffc3f1827be05e08ea22244e40ae09ca8359e45e329740aaa06dba")))(t)
 
 	expected = cache.Entry{
 		OutputID: outputID(t, "4b949c7e306fe19cf063f3dc5c1ab963a09a6bea4f7545974fe7385bdbaace94"),
@@ -105,90 +101,84 @@ func TestCache(t *testing.T) {
 		Time:     time.Date(2025, time.November, 17, 17, 13, 7, 284280000, time.UTC).Local(),
 	}
 
-	assert.Equal(t, expected.Time, actual.Time)
-	assert.Equal(t, expected, actual)
+	shoulda.BeDeepEqual(t, actual.Time, expected.Time)
+	shoulda.BeDeepEqual(t, actual, expected)
 }
 
 func TestTrimNoop(t *testing.T) {
 	t.Parallel()
 
 	c, err := New(setup(t), nil, nil, logger(t))
-	require.NoError(t, err)
+	musta.NoError(t, err)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, -1, before)
-	assert.EqualValues(t, 0, freed)
+	shoulda.BeEqual(t, before, -1)
+	shoulda.BeEqual(t, freed, 0)
 }
 
 func TestTrimCutoffNone(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 0, freed)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(0))
 }
 
 func TestTrimCutoffAll(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 109_518_524, freed)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(109_518_524))
 }
 
 func TestTrimCutoffPart(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)
-	c, err := New(setup(t), &cutoff, nil, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 3_975_344, freed)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(3_975_344))
 }
 
 func TestTrimSizeNone(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(math.MaxInt64)
-	c, err := New(setup(t), nil, &maxSize, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 0, freed)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(0))
 }
 
 func TestTrimSizeAll(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(0)
-	c, err := New(setup(t), nil, &maxSize, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 109_518_524, freed)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(109_518_524))
 }
 
 func TestTrimSizePart(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(50_000_000)
-	c, err := New(setup(t), nil, &maxSize, logger(t))
-	require.NoError(t, err)
+	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
-	assert.EqualValues(t, 109_518_524, before)
-	assert.EqualValues(t, 60_023_595, freed)
-	assert.Less(t, before-freed, maxSize)
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, int64(60_023_595))
+	shoulda.BeLess(t, before-freed, maxSize)
 }
