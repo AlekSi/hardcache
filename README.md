@@ -32,6 +32,20 @@ It can be overridden with `--dir` flag:
 hardcache local --dir=/tmp/cache ...
 ```
 
+#### Status
+
+Display current cache and disk usage stats:
+
+```
+hardcache local status
+```
+
+Use compact JSON output for scripting:
+
+```
+hardcache local status --json
+```
+
 #### Manual trimming
 
 Go standard build cache does not support [disabling trimming](https://github.com/golang/go/issues/69565),
@@ -69,20 +83,6 @@ hardcache local trimd --unused-for=2w --max-size=10GB --interval=1h
 ```
 
 Using `trimd` subcommand instead of `trim` triggers trimming every specified interval.
-
-#### Status
-
-Display current cache and disk usage stats:
-
-```
-hardcache local status
-```
-
-Use compact JSON output for scripting:
-
-```
-hardcache local status --json
-```
 
 ## Credits
 
