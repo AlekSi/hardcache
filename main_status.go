@@ -6,29 +6,13 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
 	"github.com/AlekSi/hardcache/internal/unit"
 )
 
-// localStatusReport contains all calculated values used by status output modes.
-type localStatusReport struct {
-	Directory           string
-	CacheEntries        int
-	CacheBytes          int64
-	CacheOldest         *time.Time
-	CacheNewest         *time.Time
-	DiskTotalBytes      int64
-	DiskUsedBytes       int64
-	DiskFreeBytes       int64
-	DiskUsedPercent     float64
-	DiskFreePercent     float64
-	CacheOfTotalPercent float64
-}
-
-type jsonLocalStatus struct {
+type localStatusOutput struct {
 	Directory string `json:"directory"`
 	Cache     struct {
 		Entries int     `json:"entries"`
@@ -56,121 +40,85 @@ func localStatus(dir string, asJSON bool, l *slog.Logger) error {
 		return err
 	}
 
-	cacheStats := c.Status()
+	stats := c.Status()
 	total, free, err := local.DiskInfo(dir)
 	if err != nil {
 		return err
 	}
 
-	report := newLocalStatusReport(dir, cacheStats, total, free)
-
-	var out string
+	output := newLocalStatusOutput(dir, stats, total, free)
 	if asJSON {
-		out, err = renderLocalStatusJSON(report)
-		if err != nil {
-			return err
-		}
-	} else {
-		out = renderLocalStatusText(report)
+		return json.NewEncoder(os.Stdout).Encode(output)
 	}
 
-	_, err = os.Stdout.WriteString(out)
+	_, err = fmt.Fprint(os.Stdout, output)
 	return err
 }
 
-func newLocalStatusReport(dir string, stats local.Stats, total, free int64) localStatusReport {
-	used := total - free
-	if used < 0 {
-		used = 0
+func newLocalStatusOutput(dir string, stats local.Stats, total, free int64) localStatusOutput {
+	used := max(total-free, 0)
+	percent := func(value int64) float64 {
+		if total <= 0 {
+			return 0
+		}
+
+		return math.Round(float64(value)/float64(total)*10_000) / 100
 	}
 
-	return localStatusReport{
+	res := localStatusOutput{
 		Directory:           dir,
-		CacheEntries:        stats.Entries,
-		CacheBytes:          stats.Bytes,
-		CacheOldest:         stats.Oldest,
-		CacheNewest:         stats.Newest,
-		DiskTotalBytes:      total,
-		DiskUsedBytes:       used,
-		DiskFreeBytes:       free,
-		DiskUsedPercent:     round2(percentage(used, total)),
-		DiskFreePercent:     round2(percentage(free, total)),
-		CacheOfTotalPercent: round2(percentage(stats.Bytes, total)),
+		CacheOfTotalPercent: percent(stats.Bytes),
 	}
+	res.Cache.Entries = stats.Entries
+	res.Cache.Bytes = stats.Bytes
+	res.Cache.Human = unit.Bytes(stats.Bytes).String()
+	if stats.Oldest != nil {
+		oldest := stats.Oldest.Local().Format(time.RFC3339)
+		res.Cache.Oldest = &oldest
+	}
+	if stats.Newest != nil {
+		newest := stats.Newest.Local().Format(time.RFC3339)
+		res.Cache.Newest = &newest
+	}
+	res.Disk.TotalBytes = total
+	res.Disk.TotalHuman = unit.Bytes(total).String()
+	res.Disk.UsedBytes = used
+	res.Disk.UsedHuman = unit.Bytes(used).String()
+	res.Disk.UsedPercent = percent(used)
+	res.Disk.FreeBytes = free
+	res.Disk.FreeHuman = unit.Bytes(free).String()
+	res.Disk.FreePercent = percent(free)
+
+	return res
 }
 
-func renderLocalStatusText(report localStatusReport) string {
-	var b strings.Builder
-
-	fmt.Fprintf(&b, "Directory: %s\n", report.Directory)
-	fmt.Fprintf(&b, "Cache entries: %d\n", report.CacheEntries)
-	fmt.Fprintf(&b, "Cache size: %s\n", formatSizeWithRaw(report.CacheBytes))
-	fmt.Fprintf(&b, "Oldest entry: %s\n", formatLocalTime(report.CacheOldest))
-	fmt.Fprintf(&b, "Newest entry: %s\n", formatLocalTime(report.CacheNewest))
-	fmt.Fprintf(&b, "Disk total: %s\n", formatSizeWithRaw(report.DiskTotalBytes))
-	fmt.Fprintf(&b, "Disk used: %s (%.2f%%)\n", formatSizeWithRaw(report.DiskUsedBytes), report.DiskUsedPercent)
-	fmt.Fprintf(&b, "Disk free: %s (%.2f%%)\n", formatSizeWithRaw(report.DiskFreeBytes), report.DiskFreePercent)
-	fmt.Fprintf(&b, "Cache of total disk: %.2f%%\n", report.CacheOfTotalPercent)
-
-	return b.String()
-}
-
-func renderLocalStatusJSON(report localStatusReport) (string, error) {
-	payload := jsonLocalStatus{
-		Directory:           report.Directory,
-		CacheOfTotalPercent: report.CacheOfTotalPercent,
+func (s localStatusOutput) String() string {
+	oldest, newest := "n/a", "n/a"
+	if s.Cache.Oldest != nil {
+		oldest = *s.Cache.Oldest
 	}
-	payload.Cache.Entries = report.CacheEntries
-	payload.Cache.Bytes = report.CacheBytes
-	payload.Cache.Human = unit.Bytes(report.CacheBytes).String()
-	payload.Cache.Oldest = formatLocalTimePtr(report.CacheOldest)
-	payload.Cache.Newest = formatLocalTimePtr(report.CacheNewest)
-	payload.Disk.TotalBytes = report.DiskTotalBytes
-	payload.Disk.TotalHuman = unit.Bytes(report.DiskTotalBytes).String()
-	payload.Disk.UsedBytes = report.DiskUsedBytes
-	payload.Disk.UsedHuman = unit.Bytes(report.DiskUsedBytes).String()
-	payload.Disk.UsedPercent = report.DiskUsedPercent
-	payload.Disk.FreeBytes = report.DiskFreeBytes
-	payload.Disk.FreeHuman = unit.Bytes(report.DiskFreeBytes).String()
-	payload.Disk.FreePercent = report.DiskFreePercent
-
-	res, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
+	if s.Cache.Newest != nil {
+		newest = *s.Cache.Newest
 	}
 
-	return string(res) + "\n", nil
-}
-
-func formatSizeWithRaw(size int64) string {
-	return fmt.Sprintf("%s (%d bytes)", unit.Bytes(size).String(), size)
-}
-
-func formatLocalTime(ts *time.Time) string {
-	if ts == nil {
-		return "n/a"
-	}
-
-	return ts.Local().Format(time.RFC3339)
-}
-
-func formatLocalTimePtr(ts *time.Time) *string {
-	if ts == nil {
-		return nil
-	}
-
-	res := ts.Local().Format(time.RFC3339)
-	return &res
-}
-
-func percentage(value, total int64) float64 {
-	if total <= 0 {
-		return 0
-	}
-
-	return float64(value) / float64(total) * 100
-}
-
-func round2(v float64) float64 {
-	return math.Round(v*100) / 100
+	return fmt.Sprintf(`Directory: %s
+Cache entries: %d
+Cache size: %s (%d bytes)
+Oldest entry: %s
+Newest entry: %s
+Disk total: %s (%d bytes)
+Disk used: %s (%d bytes) (%.2f%%)
+Disk free: %s (%d bytes) (%.2f%%)
+Cache of total disk: %.2f%%
+`,
+		s.Directory,
+		s.Cache.Entries,
+		s.Cache.Human, s.Cache.Bytes,
+		oldest,
+		newest,
+		s.Disk.TotalHuman, s.Disk.TotalBytes,
+		s.Disk.UsedHuman, s.Disk.UsedBytes, s.Disk.UsedPercent,
+		s.Disk.FreeHuman, s.Disk.FreeBytes, s.Disk.FreePercent,
+		s.CacheOfTotalPercent,
+	)
 }
