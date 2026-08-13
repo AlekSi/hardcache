@@ -80,12 +80,10 @@ func newLocalStatusOutput(dir string, stats local.Stats, total, free int64) loca
 	res.Cache.Bytes = stats.Bytes
 	res.Cache.Human = unit.Bytes(stats.Bytes).String()
 	if stats.Oldest != nil {
-		oldest := stats.Oldest.Local().Format(time.RFC3339)
-		res.Cache.Oldest = &oldest
+		res.Cache.Oldest = new(stats.Oldest.Local().Format(time.RFC3339))
 	}
 	if stats.Newest != nil {
-		newest := stats.Newest.Local().Format(time.RFC3339)
-		res.Cache.Newest = &newest
+		res.Cache.Newest = new(stats.Newest.Local().Format(time.RFC3339))
 	}
 	res.Disk.TotalBytes = total
 	res.Disk.TotalHuman = unit.Bytes(total).String()

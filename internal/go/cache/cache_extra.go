@@ -147,12 +147,10 @@ func (c *DiskCache) Stats(l *slog.Logger) Stats {
 	for _, fi := range files {
 		modTime := fi.ModTime
 		if stats.Oldest == nil || modTime.Before(*stats.Oldest) {
-			v := modTime
-			stats.Oldest = &v
+			stats.Oldest = new(modTime)
 		}
 		if stats.Newest == nil || modTime.After(*stats.Newest) {
-			v := modTime
-			stats.Newest = &v
+			stats.Newest = new(modTime)
 		}
 	}
 

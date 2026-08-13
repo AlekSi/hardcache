@@ -33,8 +33,7 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 
 	var cutoff *time.Time
 	if opts.UnusedFor > 0 {
-		c := now().Add(-time.Duration(opts.UnusedFor))
-		cutoff = &c
+		cutoff = new(now().Add(-time.Duration(opts.UnusedFor)))
 	}
 
 	var b unit.Bytes
@@ -72,7 +71,7 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 
 	var maxSize *int64
 	if b > 0 {
-		maxSize = (*int64)(&b)
+		maxSize = new(int64(b))
 	}
 
 	c, err := local.New(opts.Dir, cutoff, maxSize, l)
