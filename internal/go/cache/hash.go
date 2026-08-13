@@ -48,7 +48,12 @@ var hashSalt = []byte(stripExperiment(runtime.Version()))
 // stripExperiment strips any GOEXPERIMENT configuration from the Go
 // version string.
 func stripExperiment(version string) string {
-	version, _, _ = strings.Cut(version, " X:")
+	if i := strings.Index(version, " X:"); i >= 0 {
+		return version[:i]
+	}
+	if i := strings.Index(version, "-X:"); i >= 0 {
+		return version[:i]
+	}
 	return version
 }
 

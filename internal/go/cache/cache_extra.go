@@ -5,6 +5,7 @@ package cache
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -21,17 +22,21 @@ import (
 type EntryNotFoundError = entryNotFoundError
 
 // Stats describes cache state derived from a full directory scan.
+// Oldest and Newest are add times from action entries. Data entries do not store add times.
+// LeastRecentlyUsed and MostRecentlyUsed are approximate last-use times from filesystem mtimes.
 type Stats struct {
-	Entries int
-	Bytes   int64
-	Oldest  *time.Time
-	Newest  *time.Time
+	Entries           int
+	Bytes             int64
+	Oldest            *time.Time
+	Newest            *time.Time
+	LeastRecentlyUsed *time.Time
+	MostRecentlyUsed  *time.Time
 }
 
 // fileInfo represents information about a file or directory with executable in the cache.
 // The order of fields is weird to make struct smaller.
 type fileInfo struct {
-	ModTime time.Time // file modification time, or directory modification time
+	ModTime time.Time // file (or directory for executable) last use time
 	Name    string    // file name, or directory name for executable
 	Size    int64     // file size, or executable size
 }
@@ -137,20 +142,47 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 }
 
 // Stats scans the cache directory and returns aggregate statistics.
-func (c *DiskCache) Stats(l *slog.Logger) Stats {
+func (c *DiskCache) Stats(l *slog.Logger) *Stats {
 	files, bytes := c.read(l)
-	stats := Stats{
+	stats := &Stats{
 		Entries: len(files),
 		Bytes:   bytes,
 	}
 
 	for _, fi := range files {
 		modTime := fi.ModTime
-		if stats.Oldest == nil || modTime.Before(*stats.Oldest) {
-			stats.Oldest = new(modTime)
+		if stats.LeastRecentlyUsed == nil || modTime.Before(*stats.LeastRecentlyUsed) {
+			stats.LeastRecentlyUsed = new(modTime)
 		}
-		if stats.Newest == nil || modTime.After(*stats.Newest) {
-			stats.Newest = new(modTime)
+		if stats.MostRecentlyUsed == nil || modTime.After(*stats.MostRecentlyUsed) {
+			stats.MostRecentlyUsed = new(modTime)
+		}
+
+		if !strings.HasSuffix(fi.Name, "-a") {
+			continue
+		}
+
+		path := filepath.Join(c.dir, fi.Name[:2], fi.Name)
+		entry, err := os.ReadFile(path)
+		if err != nil {
+			l.Debug("Failed to read action entry", slog.String("name", path), slog.String("error", err.Error()))
+			continue
+		}
+		if !validEntry(entry) {
+			l.Debug("Invalid action entry", slog.String("name", path))
+			continue
+		}
+
+		added, err := parseEntryTime(entry[entryTimeOffset : entryTimeOffset+entryTimeSize])
+		if err != nil {
+			l.Debug("Failed to parse action entry time", slog.String("name", path), slog.String("error", err.Error()))
+			continue
+		}
+		if stats.Oldest == nil || added.Before(*stats.Oldest) {
+			stats.Oldest = new(added)
+		}
+		if stats.Newest == nil || added.After(*stats.Newest) {
+			stats.Newest = new(added)
 		}
 	}
 
@@ -218,4 +250,25 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 	}
 
 	return
+}
+
+func parseEntryTime(b []byte) (time.Time, error) {
+	ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if ns < 0 {
+		return time.Time{}, errors.New("negative timestamp")
+	}
+
+	return time.Unix(0, ns), nil
+}
+
+func validEntry(entry []byte) bool {
+	return len(entry) == entrySize &&
+		entry[0] == 'v' && entry[1] == '1' && entry[2] == ' ' &&
+		entry[3+hexSize] == ' ' &&
+		entry[3+hexSize+1+hexSize] == ' ' &&
+		entry[3+hexSize+1+hexSize+1+20] == ' ' &&
+		entry[entrySize-1] == '\n'
 }

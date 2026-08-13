@@ -15,11 +15,13 @@ import (
 type localStatusOutput struct {
 	Directory string `json:"directory"`
 	Cache     struct {
-		Entries int     `json:"entries"`
-		Bytes   int64   `json:"bytes"`
-		Human   string  `json:"human"`
-		Oldest  *string `json:"oldest"`
-		Newest  *string `json:"newest"`
+		Entries           int     `json:"entries"`
+		Bytes             int64   `json:"bytes"`
+		Human             string  `json:"human"`
+		Oldest            *string `json:"oldest"`
+		Newest            *string `json:"newest"`
+		LeastRecentlyUsed *string `json:"least_recently_used"`
+		MostRecentlyUsed  *string `json:"most_recently_used"`
 	} `json:"cache"`
 	Disk struct {
 		TotalBytes  int64   `json:"total_bytes"`
@@ -47,7 +49,7 @@ func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
 		return err
 	}
 
-	stats := c.Status()
+	stats := c.Stats()
 	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
@@ -62,7 +64,7 @@ func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
 	return err
 }
 
-func newLocalStatusOutput(dir string, stats local.Stats, total, free int64) localStatusOutput {
+func newLocalStatusOutput(dir string, stats *local.Stats, total, free int64) localStatusOutput {
 	used := max(total-free, 0)
 	percent := func(value int64) float64 {
 		if total <= 0 {
@@ -79,12 +81,17 @@ func newLocalStatusOutput(dir string, stats local.Stats, total, free int64) loca
 	res.Cache.Entries = stats.Entries
 	res.Cache.Bytes = stats.Bytes
 	res.Cache.Human = unit.Bytes(stats.Bytes).String()
-	if stats.Oldest != nil {
-		res.Cache.Oldest = new(stats.Oldest.Local().Format(time.RFC3339))
+	formatTime := func(t *time.Time) *string {
+		if t == nil {
+			return nil
+		}
+
+		return new(t.Local().Format(time.RFC3339))
 	}
-	if stats.Newest != nil {
-		res.Cache.Newest = new(stats.Newest.Local().Format(time.RFC3339))
-	}
+	res.Cache.Oldest = formatTime(stats.Oldest)
+	res.Cache.Newest = formatTime(stats.Newest)
+	res.Cache.LeastRecentlyUsed = formatTime(stats.LeastRecentlyUsed)
+	res.Cache.MostRecentlyUsed = formatTime(stats.MostRecentlyUsed)
 	res.Disk.TotalBytes = total
 	res.Disk.TotalHuman = unit.Bytes(total).String()
 	res.Disk.UsedBytes = used
@@ -98,12 +105,12 @@ func newLocalStatusOutput(dir string, stats local.Stats, total, free int64) loca
 }
 
 func (s localStatusOutput) String() string {
-	oldest, newest := "n/a", "n/a"
-	if s.Cache.Oldest != nil {
-		oldest = *s.Cache.Oldest
-	}
-	if s.Cache.Newest != nil {
-		newest = *s.Cache.Newest
+	formatTime := func(t *string) string {
+		if t == nil {
+			return "n/a"
+		}
+
+		return *t
 	}
 
 	return fmt.Sprintf(`Directory: %s
@@ -111,6 +118,8 @@ Cache entries: %d
 Cache size: %s (%d bytes)
 Oldest entry: %s
 Newest entry: %s
+Least recently used: %s
+Most recently used: %s
 Disk total: %s (%d bytes)
 Disk used: %s (%d bytes) (%.2f%%)
 Disk free: %s (%d bytes) (%.2f%%)
@@ -119,8 +128,10 @@ Cache of total disk: %.2f%%
 		s.Directory,
 		s.Cache.Entries,
 		s.Cache.Human, s.Cache.Bytes,
-		oldest,
-		newest,
+		formatTime(s.Cache.Oldest),
+		formatTime(s.Cache.Newest),
+		formatTime(s.Cache.LeastRecentlyUsed),
+		formatTime(s.Cache.MostRecentlyUsed),
 		s.Disk.TotalHuman, s.Disk.TotalBytes,
 		s.Disk.UsedHuman, s.Disk.UsedBytes, s.Disk.UsedPercent,
 		s.Disk.FreeHuman, s.Disk.FreeBytes, s.Disk.FreePercent,

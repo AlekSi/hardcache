@@ -31,7 +31,7 @@ func TestLocalTrimdStatistics(t *testing.T) {
 		Interval: unit.Duration(time.Hour),
 	}, l))
 
-	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Status()
+	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Stats()
 	shoulda.BeEqual(t, stats.Bytes, int64(49_494_929))
 	shoulda.BeGreater(t, stats.Entries, 0)
 
@@ -43,5 +43,7 @@ func TestLocalTrimdStatistics(t *testing.T) {
 	shoulda.SatisfyWith(t, actual, `cache.size="49MB (49494929 bytes)"`, strings.Contains)
 	shoulda.SatisfyWith(t, actual, `cache.oldest=`, strings.Contains)
 	shoulda.SatisfyWith(t, actual, `cache.newest=`, strings.Contains)
+	shoulda.SatisfyWith(t, actual, `cache.least_recently_used=`, strings.Contains)
+	shoulda.SatisfyWith(t, actual, `cache.most_recently_used=`, strings.Contains)
 	shoulda.SatisfyWith(t, actual, `disk.total=`, strings.Contains)
 }

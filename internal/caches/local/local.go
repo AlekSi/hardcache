@@ -21,11 +21,15 @@ type Cache struct {
 }
 
 // Stats describes local cache state.
+// Oldest and Newest are action-entry add times. LeastRecentlyUsed and
+// MostRecentlyUsed are approximate last-use times.
 type Stats struct {
-	Entries int
-	Bytes   int64
-	Oldest  *time.Time
-	Newest  *time.Time
+	Entries           int
+	Bytes             int64
+	Oldest            *time.Time
+	Newest            *time.Time
+	LeastRecentlyUsed *time.Time
+	MostRecentlyUsed  *time.Time
 }
 
 // New creates a new [Cache].
@@ -76,14 +80,16 @@ func (c *Cache) TrimForce() (before, freed int64) {
 	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)
 }
 
-// Status returns current local cache statistics.
-func (c *Cache) Status() Stats {
+// Stats returns current local cache statistics.
+func (c *Cache) Stats() *Stats {
 	s := c.dc.Stats(c.l)
-	return Stats{
-		Entries: s.Entries,
-		Bytes:   s.Bytes,
-		Oldest:  s.Oldest,
-		Newest:  s.Newest,
+	return &Stats{
+		Entries:           s.Entries,
+		Bytes:             s.Bytes,
+		Oldest:            s.Oldest,
+		Newest:            s.Newest,
+		LeastRecentlyUsed: s.LeastRecentlyUsed,
+		MostRecentlyUsed:  s.MostRecentlyUsed,
 	}
 }
 

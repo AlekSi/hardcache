@@ -80,7 +80,7 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 	}
 
 	before, freed := c.TrimForce()
-	stats := c.Status()
+	stats := c.Stats()
 	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
@@ -91,12 +91,12 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		before = stats.Bytes + freed
 	}
 
-	oldest, newest := "n/a", "n/a"
-	if status.Cache.Oldest != nil {
-		oldest = *status.Cache.Oldest
-	}
-	if status.Cache.Newest != nil {
-		newest = *status.Cache.Newest
+	formatTime := func(t *string) string {
+		if t == nil {
+			return "n/a"
+		}
+
+		return *t
 	}
 
 	l.Debug(
@@ -113,8 +113,10 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		slog.Group("cache",
 			slog.Int("entries", status.Cache.Entries),
 			slog.String("size", fmt.Sprintf("%s (%d bytes)", status.Cache.Human, status.Cache.Bytes)),
-			slog.String("oldest", oldest),
-			slog.String("newest", newest),
+			slog.String("oldest", formatTime(status.Cache.Oldest)),
+			slog.String("newest", formatTime(status.Cache.Newest)),
+			slog.String("least_recently_used", formatTime(status.Cache.LeastRecentlyUsed)),
+			slog.String("most_recently_used", formatTime(status.Cache.MostRecentlyUsed)),
 		),
 		slog.Group("disk",
 			slog.String("total", fmt.Sprintf("%s (%d bytes)", status.Disk.TotalHuman, status.Disk.TotalBytes)),

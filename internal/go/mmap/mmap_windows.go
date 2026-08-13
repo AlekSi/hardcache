@@ -6,10 +6,10 @@ package mmap
 
 import (
 	"fmt"
+	"internal/syscall/windows"
 	"os"
+	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/windows"
 )
 
 func mmapFile(f *os.File) (Data, error) {
@@ -21,12 +21,12 @@ func mmapFile(f *os.File) (Data, error) {
 	if size == 0 {
 		return Data{f, nil}, nil
 	}
-	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, windows.PAGE_READONLY, 0, 0, nil)
+	h, err := syscall.CreateFileMapping(syscall.Handle(f.Fd()), nil, syscall.PAGE_READONLY, 0, 0, nil)
 	if err != nil {
 		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
 	}
 
-	addr, err := windows.MapViewOfFile(h, windows.FILE_MAP_READ, 0, 0, 0)
+	addr, err := syscall.MapViewOfFile(h, syscall.FILE_MAP_READ, 0, 0, 0)
 	if err != nil {
 		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
 	}

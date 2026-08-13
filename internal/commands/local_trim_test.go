@@ -21,7 +21,7 @@ func TestLocalTrimStatistics(t *testing.T) {
 
 	musta.NoError(t, LocalTrim(&LocalTrimOpts{Dir: dir, MaxSize: "50MB"}, l))
 
-	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Status()
+	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Stats()
 	shoulda.BeEqual(t, stats.Bytes, int64(49_494_929))
 
 	actual := output.String()
@@ -34,6 +34,8 @@ func TestLocalTrimStatistics(t *testing.T) {
 		`cache.size="49MB (49494929 bytes)"`,
 		`cache.oldest=`,
 		`cache.newest=`,
+		`cache.least_recently_used=`,
+		`cache.most_recently_used=`,
 		`disk.total=`,
 		`disk.used=`,
 		`disk.used_percent=`,
