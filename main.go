@@ -90,17 +90,27 @@ func main() {
 
 	switch kongCtx.Command() {
 	case "local status":
-		err := commands.LocalStatus(cli.Local.Dir, cli.Local.Status.JSON, os.Stdout, l)
+		err := commands.LocalStatus(&commands.LocalStatusOpts{
+			Dir:  cli.Local.Dir,
+			JSON: cli.Local.Status.JSON,
+		}, os.Stdout, l)
 		kongCtx.FatalIfErrorf(err)
 
 	case "local trim":
-		err := commands.LocalTrim(cli.Local.Dir, cli.Local.Trim.UnusedFor, cli.Local.Trim.MaxSize, l)
+		err := commands.LocalTrim(&commands.LocalTrimOpts{
+			Dir:       cli.Local.Dir,
+			UnusedFor: cli.Local.Trim.UnusedFor,
+			MaxSize:   cli.Local.Trim.MaxSize,
+		}, l)
 		kongCtx.FatalIfErrorf(err)
 
 	case "local trimd":
-		err := commands.LocalTrimd(
-			ctx, cli.Local.Dir, cli.Local.Trimd.UnusedFor, cli.Local.Trimd.MaxSize, cli.Local.Trimd.Interval, l,
-		)
+		err := commands.LocalTrimd(ctx, &commands.LocalTrimdOpts{
+			Dir:       cli.Local.Dir,
+			UnusedFor: cli.Local.Trimd.UnusedFor,
+			MaxSize:   cli.Local.Trimd.MaxSize,
+			Interval:  cli.Local.Trimd.Interval,
+		}, l)
 		kongCtx.FatalIfErrorf(err)
 
 	default:

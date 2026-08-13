@@ -34,7 +34,7 @@ func TestLocalStatus(t *testing.T) {
 
 	t.Run("text", func(t *testing.T) {
 		var output strings.Builder
-		musta.NoError(t, LocalStatus(dir, false, &output, slog.Default()))
+		musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: dir}, &output, slog.Default()))
 
 		actual := output.String()
 		shoulda.SatisfyWith(t, actual, "Directory: "+dir, strings.Contains)
@@ -48,7 +48,7 @@ func TestLocalStatus(t *testing.T) {
 
 	t.Run("JSON", func(t *testing.T) {
 		var output strings.Builder
-		musta.NoError(t, LocalStatus(dir, true, &output, slog.Default()))
+		musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: dir, JSON: true}, &output, slog.Default()))
 
 		actual := output.String()
 		shoulda.SatisfyWith(t, actual, "\n", strings.HasSuffix)
@@ -73,7 +73,7 @@ func TestLocalStatusEmpty(t *testing.T) {
 	t.Parallel()
 
 	var output strings.Builder
-	musta.NoError(t, LocalStatus(t.TempDir(), false, &output, slog.Default()))
+	musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: t.TempDir()}, &output, slog.Default()))
 
 	actual := output.String()
 	shoulda.SatisfyWith(t, actual, "Cache entries: 0", strings.Contains)

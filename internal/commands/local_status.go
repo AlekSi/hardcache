@@ -34,21 +34,27 @@ type localStatusOutput struct {
 	CacheOfTotalPercent float64 `json:"cache_of_total_percent"`
 }
 
+// LocalStatusOpts contains flag values for [LocalStatus].
+type LocalStatusOpts struct {
+	Dir  string
+	JSON bool
+}
+
 // LocalStatus writes local cache and disk usage statistics to out.
-func LocalStatus(dir string, asJSON bool, out io.Writer, l *slog.Logger) error {
-	c, err := local.New(dir, nil, nil, l)
+func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
+	c, err := local.New(opts.Dir, nil, nil, l)
 	if err != nil {
 		return err
 	}
 
 	stats := c.Status()
-	total, free, err := local.DiskInfo(dir)
+	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
 	}
 
-	output := newLocalStatusOutput(dir, stats, total, free)
-	if asJSON {
+	output := newLocalStatusOutput(opts.Dir, stats, total, free)
+	if opts.JSON {
 		return json.NewEncoder(out).Encode(output)
 	}
 

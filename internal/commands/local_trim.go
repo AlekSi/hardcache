@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -11,34 +10,41 @@ import (
 	"github.com/AlekSi/hardcache/internal/unit"
 )
 
+// LocalTrimOpts contains flag values for [LocalTrim].
+type LocalTrimOpts struct {
+	Dir       string
+	UnusedFor unit.Duration
+	MaxSize   string
+}
+
 // LocalTrim force-trims a local cache according to the given parameters.
-func LocalTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog.Logger) error {
-	if time.Duration(unusedFor) > 5*24*time.Hour {
+func LocalTrim(opts *LocalTrimOpts, l *slog.Logger) error {
+	if time.Duration(opts.UnusedFor) > 5*24*time.Hour {
 		l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
 	}
 
-	return localTrim(dir, unusedFor, maxSizeValue, l)
+	return localTrim(opts, l)
 }
 
-func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog.Logger) error {
-	if unusedFor < 0 {
-		return fmt.Errorf("--unused-for cannot be negative: %d", unusedFor)
+func localTrim(opts *LocalTrimOpts, l *slog.Logger) error {
+	if opts.UnusedFor < 0 {
+		return fmt.Errorf("--unused-for cannot be negative: %d", opts.UnusedFor)
 	}
 
 	var cutoff *time.Time
-	if unusedFor > 0 {
-		c := time.Now().Add(-time.Duration(unusedFor))
+	if opts.UnusedFor > 0 {
+		c := time.Now().Add(-time.Duration(opts.UnusedFor))
 		cutoff = &c
 	}
 
 	var b unit.Bytes
-	if strings.HasSuffix(maxSizeValue, "%") {
+	if strings.HasSuffix(opts.MaxSize, "%") {
 		var p unit.Percentage
-		if err := p.UnmarshalText([]byte(maxSizeValue)); err != nil {
+		if err := p.UnmarshalText([]byte(opts.MaxSize)); err != nil {
 			return err
 		}
 
-		total, _, err := local.DiskInfo(dir)
+		total, _, err := local.DiskInfo(opts.Dir)
 		if err != nil {
 			return err
 		}
@@ -53,7 +59,7 @@ func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog
 			slog.String("max_size", b.String()),
 		)
 	} else {
-		if err := b.UnmarshalText([]byte(maxSizeValue)); err != nil {
+		if err := b.UnmarshalText([]byte(opts.MaxSize)); err != nil {
 			return err
 		}
 
@@ -69,19 +75,19 @@ func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog
 		maxSize = (*int64)(&b)
 	}
 
-	c, err := local.New(dir, cutoff, maxSize, l)
+	c, err := local.New(opts.Dir, cutoff, maxSize, l)
 	if err != nil {
 		return err
 	}
 
 	before, freed := c.TrimForce()
 	stats := c.Status()
-	total, free, err := local.DiskInfo(dir)
+	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
 	}
 
-	status := newLocalStatusOutput(dir, stats, total, free)
+	status := newLocalStatusOutput(opts.Dir, stats, total, free)
 	if before < 0 {
 		before = stats.Bytes + freed
 	}
@@ -122,26 +128,4 @@ func localTrim(dir string, unusedFor unit.Duration, maxSizeValue string, l *slog
 	)
 
 	return nil
-}
-
-// LocalTrimd continuously trims a local cache until ctx is canceled.
-func LocalTrimd(
-	ctx context.Context,
-	dir string,
-	unusedFor unit.Duration,
-	maxSizeValue string,
-	interval unit.Duration,
-	l *slog.Logger,
-) error {
-	for {
-		if err := localTrim(dir, unusedFor, maxSizeValue, l); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(time.Duration(interval)):
-		}
-	}
 }
