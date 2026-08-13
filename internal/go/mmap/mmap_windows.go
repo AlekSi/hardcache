@@ -6,10 +6,11 @@ package mmap
 
 import (
 	"fmt"
-	"internal/syscall/windows"
 	"os"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 func mmapFile(f *os.File) (Data, error) {

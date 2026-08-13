@@ -7,9 +7,10 @@
 package filelock
 
 import (
-	"internal/syscall/windows"
 	"io/fs"
 	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 type lockType uint32
