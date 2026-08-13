@@ -14,6 +14,8 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
+	"github.com/AlekSi/hardcache/internal/caches/stat"
+	"github.com/AlekSi/hardcache/internal/prog"
 	"github.com/AlekSi/hardcache/internal/sigterm"
 	"github.com/AlekSi/hardcache/internal/unit"
 )
@@ -27,6 +29,7 @@ var cli struct {
 		UnusedFor unit.Duration `default:"5d" help:"Always remove entries unused for this duration. Pass 0 to disable."`
 		MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
 
+		Use   struct{} `cmd:"" hidden:""`
 		Trim  struct{} `cmd:"" help:"Trim local cache."`
 		Trimd struct {
 			Interval unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
@@ -52,10 +55,10 @@ var GOCACHE = sync.OnceValue(func() string {
 	return strings.TrimSpace(string(b))
 })
 
-// localTrim force-trims local cache according to CLI flags.
-func localTrim(l *slog.Logger) error {
+// localCache creates local cache according to CLI flags.
+func localCache(l *slog.Logger) (*local.Cache, error) {
 	if cli.Local.UnusedFor < 0 {
-		return fmt.Errorf("--unused-for cannot be negative: %d", cli.Local.UnusedFor)
+		return nil, fmt.Errorf("--unused-for cannot be negative: %d", cli.Local.UnusedFor)
 	}
 
 	var cutoff *time.Time
@@ -68,12 +71,12 @@ func localTrim(l *slog.Logger) error {
 	if strings.HasSuffix(cli.Local.MaxSize, "%") {
 		var p unit.Percentage
 		if err := p.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
-			return err
+			return nil, err
 		}
 
 		total, _, err := local.DiskInfo(cli.Local.Dir)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		b = unit.Bytes(total / 100 * int64(p))
@@ -87,14 +90,14 @@ func localTrim(l *slog.Logger) error {
 		)
 	} else {
 		if err := b.UnmarshalText([]byte(cli.Local.MaxSize)); err != nil {
-			return err
+			return nil, err
 		}
 
 		l.Debug("Max size", slog.Int64("max_size_bytes", int64(b)), slog.String("max_size", b.String()))
 	}
 
 	if b < 0 {
-		return fmt.Errorf("--max-size cannot be negative: %d", b)
+		return nil, fmt.Errorf("--max-size cannot be negative: %d", b)
 	}
 
 	var maxSize *int64
@@ -102,7 +105,12 @@ func localTrim(l *slog.Logger) error {
 		maxSize = (*int64)(&b)
 	}
 
-	c, err := local.New(cli.Local.Dir, cutoff, maxSize, l)
+	return local.New(cli.Local.Dir, cutoff, maxSize, l)
+}
+
+// localTrim force-trims local cache according to CLI flags.
+func localTrim(l *slog.Logger) error {
+	c, err := localCache(l)
 	if err != nil {
 		return err
 	}
@@ -151,6 +159,14 @@ func main() {
 	defer cancel()
 
 	switch kongCtx.Command() {
+	case "local use":
+		c, err := localCache(l)
+		kongCtx.FatalIfErrorf(err)
+
+		p := prog.New(stat.New(c, l), l, os.Stdin, os.Stdout)
+		err = p.Run(ctx)
+		kongCtx.FatalIfErrorf(err)
+
 	case "local trim":
 		if time.Duration(cli.Local.UnusedFor) > 5*24*time.Hour {
 			l.Info("Note: this command should be invoked more often than once per day to keep the cache.")

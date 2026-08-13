@@ -1,6 +1,6 @@
-## [v0.2.0](https://github.com/AlekSi/hardcache/releases/tag/v0.2.0) (2025-12-07)
+## v0.3.0 (unreleased)
 
-## What's Changed
+## [v0.2.0](https://github.com/AlekSi/hardcache/releases/tag/v0.2.0) (2025-12-07)
 
 * Windows support.
 * Support continuous trimming with `hardcache local trimd`.

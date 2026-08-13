@@ -12,3 +12,4 @@ run:
 	go build -race -o bin/
 	bin/hardcache --help
 	mkdir -p tmp/cache
+	env GORACE=halt_on_error=1 GOCACHEPROG='bin/hardcache local use --dir=tmp/cache --debug' go build -o bin/
