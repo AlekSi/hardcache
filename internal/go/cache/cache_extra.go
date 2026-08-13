@@ -5,7 +5,6 @@ package cache
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,6 +19,11 @@ import (
 
 // EntryNotFoundError is exported for use in other packages.
 type EntryNotFoundError = entryNotFoundError
+
+const (
+	actionEntryTimeSize   = 20
+	actionEntryTimeOffset = entrySize - actionEntryTimeSize - 1
+)
 
 // Stats describes cache state derived from a full directory scan.
 // Oldest and Newest are add times from action entries. Data entries do not store add times.
@@ -168,16 +172,22 @@ func (c *DiskCache) Stats(l *slog.Logger) *Stats {
 			l.Debug("Failed to read action entry", slog.String("name", path), slog.String("error", err.Error()))
 			continue
 		}
-		if !validEntry(entry) {
+		if len(entry) != entrySize {
 			l.Debug("Invalid action entry", slog.String("name", path))
 			continue
 		}
 
-		added, err := parseEntryTime(entry[entryTimeOffset : entryTimeOffset+entryTimeSize])
+		b := entry[actionEntryTimeOffset : actionEntryTimeOffset+actionEntryTimeSize]
+		ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
 		if err != nil {
 			l.Debug("Failed to parse action entry time", slog.String("name", path), slog.String("error", err.Error()))
 			continue
 		}
+		if ns < 0 {
+			l.Debug("Invalid action entry time", slog.String("name", path), slog.Int64("timestamp", ns))
+			continue
+		}
+		added := time.Unix(0, ns)
 		if stats.Oldest == nil || added.Before(*stats.Oldest) {
 			stats.Oldest = new(added)
 		}
@@ -250,25 +260,4 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 	}
 
 	return
-}
-
-func parseEntryTime(b []byte) (time.Time, error) {
-	ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if ns < 0 {
-		return time.Time{}, errors.New("negative timestamp")
-	}
-
-	return time.Unix(0, ns), nil
-}
-
-func validEntry(entry []byte) bool {
-	return len(entry) == entrySize &&
-		entry[0] == 'v' && entry[1] == '1' && entry[2] == ' ' &&
-		entry[3+hexSize] == ' ' &&
-		entry[3+hexSize+1+hexSize] == ' ' &&
-		entry[3+hexSize+1+hexSize+1+20] == ' ' &&
-		entry[entrySize-1] == '\n'
 }
