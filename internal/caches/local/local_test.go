@@ -4,29 +4,15 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"math"
-	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/AlekSi/shoulda"
 	"github.com/AlekSi/shoulda/musta"
 
+	"github.com/AlekSi/hardcache/internal/caches/local/localtest"
 	"github.com/AlekSi/hardcache/internal/go/cache"
 )
-
-// setup copies testdata cache to a test-specific temporary directory.
-func setup(t testing.TB) string {
-	t.Helper()
-
-	src := filepath.Join("..", "..", "testdata", "local")
-	dst := t.TempDir()
-
-	b, err := exec.Command("cp", "-a", src, dst).CombinedOutput()
-	musta.NoErrorf(t, err, "%s", b)
-
-	return filepath.Join(dst, "local")
-}
 
 // logger returns a [slog.Logger] for the given test.
 func logger(t testing.TB) *slog.Logger {
@@ -66,7 +52,7 @@ func outputID(t testing.TB, s string) cache.OutputID {
 func TestCache(t *testing.T) {
 	t.Parallel()
 
-	dir := setup(t)
+	dir := localtest.Setup(t)
 
 	c := musta.NotFail(cache.Open(dir))(t)
 
@@ -108,7 +94,7 @@ func TestCache(t *testing.T) {
 func TestTrimNoop(t *testing.T) {
 	t.Parallel()
 
-	c, err := New(setup(t), nil, nil, logger(t))
+	c, err := New(localtest.Setup(t), nil, nil, logger(t))
 	musta.NoError(t, err)
 
 	before, freed := c.TrimForce()
@@ -120,7 +106,7 @@ func TestTrimCutoffNone(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -131,7 +117,7 @@ func TestTrimCutoffAll(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)
-	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -142,7 +128,7 @@ func TestTrimCutoffPart(t *testing.T) {
 	t.Parallel()
 
 	cutoff := time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)
-	c := musta.NotFail(New(setup(t), &cutoff, nil, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), &cutoff, nil, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -153,7 +139,7 @@ func TestTrimSizeNone(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(math.MaxInt64)
-	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -164,7 +150,7 @@ func TestTrimSizeAll(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(0)
-	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -175,7 +161,7 @@ func TestTrimSizePart(t *testing.T) {
 	t.Parallel()
 
 	maxSize := int64(50_000_000)
-	c := musta.NotFail(New(setup(t), nil, &maxSize, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), nil, &maxSize, logger(t)))(t)
 
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
@@ -186,7 +172,7 @@ func TestTrimSizePart(t *testing.T) {
 func TestStatusFixture(t *testing.T) {
 	t.Parallel()
 
-	c := musta.NotFail(New(setup(t), nil, nil, logger(t)))(t)
+	c := musta.NotFail(New(localtest.Setup(t), nil, nil, logger(t)))(t)
 
 	stats := c.Status()
 	shoulda.BeEqual(t, stats.Entries, 1219)
@@ -199,7 +185,11 @@ func TestStatusFixture(t *testing.T) {
 func TestStatusEmpty(t *testing.T) {
 	t.Parallel()
 
-	c := musta.NotFail(New(t.TempDir(), nil, nil, logger(t)))(t)
+	maxSize := int64(0)
+	c := musta.NotFail(New(localtest.Setup(t), nil, &maxSize, logger(t)))(t)
+	before, freed := c.TrimForce()
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, before)
 
 	stats := c.Status()
 	shoulda.BeEqual(t, stats.Entries, 0)

@@ -23,17 +23,17 @@ func LocalTrim(opts *LocalTrimOpts, l *slog.Logger) error {
 		l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
 	}
 
-	return localTrim(opts, l)
+	return localTrim(opts, time.Now, l)
 }
 
-func localTrim(opts *LocalTrimOpts, l *slog.Logger) error {
+func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error {
 	if opts.UnusedFor < 0 {
 		return fmt.Errorf("--unused-for cannot be negative: %d", opts.UnusedFor)
 	}
 
 	var cutoff *time.Time
 	if opts.UnusedFor > 0 {
-		c := time.Now().Add(-time.Duration(opts.UnusedFor))
+		c := now().Add(-time.Duration(opts.UnusedFor))
 		cutoff = &c
 	}
 

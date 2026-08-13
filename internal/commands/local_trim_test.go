@@ -9,12 +9,13 @@ import (
 	"github.com/AlekSi/shoulda/musta"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
+	"github.com/AlekSi/hardcache/internal/caches/local/localtest"
 )
 
 func TestLocalTrimStatistics(t *testing.T) {
 	t.Parallel()
 
-	dir := setup(t)
+	dir := localtest.Setup(t)
 	var output strings.Builder
 	l := slog.New(slog.NewTextHandler(&output, nil))
 

@@ -24,15 +24,17 @@ func LocalTrimd(ctx context.Context, opts *LocalTrimdOpts, l *slog.Logger) error
 		MaxSize:   opts.MaxSize,
 	}
 
+	t := time.Tick(time.Duration(opts.Interval))
+
 	for {
-		if err := localTrim(trimOpts, l); err != nil {
+		if err := localTrim(trimOpts, time.Now, l); err != nil {
 			return err
 		}
 
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.After(time.Duration(opts.Interval)):
+		case <-t:
 		}
 	}
 }

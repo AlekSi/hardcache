@@ -3,32 +3,21 @@ package commands
 import (
 	"encoding/json"
 	"log/slog"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/AlekSi/shoulda"
 	"github.com/AlekSi/shoulda/musta"
+
+	"github.com/AlekSi/hardcache/internal/caches/local"
+	"github.com/AlekSi/hardcache/internal/caches/local/localtest"
 )
-
-// setup copies the testdata cache to a test-specific temporary directory.
-func setup(t testing.TB) string {
-	t.Helper()
-
-	src := filepath.Join("..", "testdata", "local")
-	dst := t.TempDir()
-	b, err := exec.Command("cp", "-a", src, dst).CombinedOutput()
-	musta.NoErrorf(t, err, "%s", b)
-
-	return filepath.Join(dst, "local")
-}
 
 func TestLocalStatus(t *testing.T) {
 	t.Parallel()
 
-	dir := setup(t)
+	dir := localtest.Setup(t)
 	oldest := time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local().Format(time.RFC3339)
 	newest := time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local().Format(time.RFC3339)
 
@@ -72,8 +61,15 @@ func TestLocalStatus(t *testing.T) {
 func TestLocalStatusEmpty(t *testing.T) {
 	t.Parallel()
 
+	dir := localtest.Setup(t)
+	maxSize := int64(0)
+	c := musta.NotFail(local.New(dir, nil, &maxSize, slog.Default()))(t)
+	before, freed := c.TrimForce()
+	shoulda.BeEqual(t, before, int64(109_518_524))
+	shoulda.BeEqual(t, freed, before)
+
 	var output strings.Builder
-	musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: t.TempDir()}, &output, slog.Default()))
+	musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: dir}, &output, slog.Default()))
 
 	actual := output.String()
 	shoulda.SatisfyWith(t, actual, "Cache entries: 0", strings.Contains)
