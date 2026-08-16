@@ -34,7 +34,7 @@ func TestHashFile(t *testing.T) {
 	name := f.Name()
 	fmt.Fprintf(f, "hello world")
 	defer os.Remove(name)
-	if err = f.Close(); err != nil {
+	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
 
