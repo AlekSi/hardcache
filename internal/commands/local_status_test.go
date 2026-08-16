@@ -68,7 +68,9 @@ func TestLocalStatusEmpty(t *testing.T) {
 	t.Parallel()
 
 	dir := localtest.Setup(t)
-	c := musta.NotFail(local.New(dir, nil, new(int64(0)), slog.Default()))(t)
+	c, err := local.New(dir, nil, new(int64(0)), slog.Default())
+	musta.NoError(t, err)
+
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, before)
