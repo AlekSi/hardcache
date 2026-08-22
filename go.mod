@@ -2,8 +2,6 @@ module github.com/AlekSi/hardcache
 
 go 1.26
 
-toolchain go1.26.6
-
 // https://go.dev/doc/godebug#go-120
 // https://pkg.go.dev/archive/tar#Reader.Next
 // https://pkg.go.dev/archive/zip#OpenReader
