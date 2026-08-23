@@ -12,7 +12,7 @@ godebug (
 
 require (
 	github.com/AlekSi/lazyerrors v0.6.0
-	github.com/AlekSi/shoulda v0.0.0-20260823083631-9dc9dbf21e59
+	github.com/AlekSi/shoulda v0.0.1
 	github.com/alecthomas/kong v1.16.1
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/xhit/go-str2duration/v2 v2.1.0
