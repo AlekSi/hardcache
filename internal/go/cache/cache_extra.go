@@ -154,12 +154,11 @@ func (c *DiskCache) Stats(l *slog.Logger) *Stats {
 	}
 
 	for _, fi := range files {
-		mTime := fi.LastUse
-		if stats.LeastRecentlyUsed == nil || mTime.Before(*stats.LeastRecentlyUsed) {
-			stats.LeastRecentlyUsed = new(mTime)
+		if stats.LeastRecentlyUsed == nil || fi.LastUse.Before(*stats.LeastRecentlyUsed) {
+			stats.LeastRecentlyUsed = &fi.LastUse
 		}
-		if stats.MostRecentlyUsed == nil || mTime.After(*stats.MostRecentlyUsed) {
-			stats.MostRecentlyUsed = new(mTime)
+		if stats.MostRecentlyUsed == nil || fi.LastUse.After(*stats.MostRecentlyUsed) {
+			stats.MostRecentlyUsed = &fi.LastUse
 		}
 
 		if !strings.HasSuffix(fi.Name, "-a") {
@@ -187,12 +186,13 @@ func (c *DiskCache) Stats(l *slog.Logger) *Stats {
 			l.Debug("Invalid action entry time", slog.String("name", path), slog.Int64("timestamp", ns))
 			continue
 		}
+
 		added := time.Unix(0, ns)
 		if stats.Oldest == nil || added.Before(*stats.Oldest) {
-			stats.Oldest = new(added)
+			stats.Oldest = &added
 		}
 		if stats.Newest == nil || added.After(*stats.Newest) {
-			stats.Newest = new(added)
+			stats.Newest = &added
 		}
 	}
 
@@ -227,7 +227,7 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 			}
 
 			size := fi.Size()
-			mTime := fi.ModTime()
+			lastUse := fi.ModTime()
 
 			if fi.IsDir() {
 				entrs, err := os.ReadDir(filepath.Join(subdir, name))
@@ -252,7 +252,7 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 
 			before += size
 			files = append(files, fileInfo{
-				LastUse: mTime,
+				LastUse: lastUse,
 				Name:    name,
 				Size:    size,
 			})
