@@ -21,12 +21,14 @@ func TestLocalTrim(t *testing.T) {
 	var buf strings.Builder
 	l := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	started := time.Now()
+	started := time.Now().Add(-time.Second).Truncate(time.Second)
+
 	musta.NoError(t, LocalTrim(&LocalTrimOpts{
 		Dir:     dir,
 		MaxSize: "50MB",
 	}, l))
-	finished := time.Now()
+
+	finished := time.Now().Add(time.Second).Truncate(time.Second)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	shoulda.BeEqual(t, len(lines), 810)
