@@ -64,14 +64,9 @@ func (c *Cache) FuzzDir() string {
 // TrimForce removes cache entries (starting from least recently used),
 // enforcing both cutoff date and max cache size, if set.
 // It ignores the last trim time, but updates it.
-func (c *Cache) TrimForce() (before, freed int64) {
+// It returns statistics derived from the same cache scan used for trimming.
+func (c *Cache) TrimForce() (before, freed int64, stats *cache.Stats) {
 	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)
-}
-
-// TrimForceWithStats is like [Cache.TrimForce], but also returns statistics
-// derived from the same cache scan used for trimming.
-func (c *Cache) TrimForceWithStats() (before, freed int64, stats *cache.Stats) {
-	return c.dc.TrimForceWithStats(c.cutoff, c.maxSize, c.l)
 }
 
 // Stats returns current local cache statistics.

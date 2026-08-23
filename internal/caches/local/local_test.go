@@ -101,7 +101,7 @@ func TestTrimNoop(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, -1)
 	shoulda.BeEqual(t, freed, 0)
 
@@ -121,7 +121,7 @@ func TestTrimCutoffNone(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(0))
 
@@ -141,7 +141,7 @@ func TestTrimCutoffAll(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(109_518_524))
 
@@ -154,7 +154,7 @@ func TestTrimCutoffPart(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(3_975_344))
 
@@ -174,7 +174,7 @@ func TestTrimSizeNone(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(int64(math.MaxInt64)), logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(0))
 
@@ -194,7 +194,7 @@ func TestTrimSizeAll(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(int64(0)), logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(109_518_524))
 
@@ -208,7 +208,7 @@ func TestTrimSizePart(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(maxSize), logger(t))
 	musta.NoError(t, err)
 
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(60_023_595))
 
@@ -232,7 +232,7 @@ func TestTrimCutoffAndSize(t *testing.T) {
 		c, err := New(localtest.Setup(t), cutoff, &maxSize, logger(t))
 		musta.NoError(t, err)
 
-		before, freed, stats := c.TrimForceWithStats()
+		before, freed, stats := c.TrimForce()
 		shoulda.BeEqual(t, before, int64(109_518_524))
 		shoulda.BeEqual(t, freed, int64(3_975_344))
 		shoulda.BeEqual(t, stats.Bytes, int64(105_543_180))
@@ -244,7 +244,7 @@ func TestTrimCutoffAndSize(t *testing.T) {
 		c, err := New(localtest.Setup(t), cutoff, &maxSize, logger(t))
 		musta.NoError(t, err)
 
-		before, freed, stats := c.TrimForceWithStats()
+		before, freed, stats := c.TrimForce()
 		shoulda.BeEqual(t, before, int64(109_518_524))
 		shoulda.BeEqual(t, freed, int64(60_023_595))
 		shoulda.BeDeepEqual(t, stats, &cache.Stats{

@@ -84,12 +84,7 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 	ctx := context.Background()
 	debugEnabled := l.Enabled(ctx, slog.LevelDebug)
 	infoEnabled := l.Enabled(ctx, slog.LevelInfo)
-	if !debugEnabled && !infoEnabled {
-		c.TrimForce()
-		return nil
-	}
-
-	before, freed, stats := c.TrimForceWithStats()
+	before, freed, stats := c.TrimForce()
 	if before < 0 {
 		before = stats.Bytes + freed
 	}

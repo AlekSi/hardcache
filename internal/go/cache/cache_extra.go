@@ -60,7 +60,7 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	before, freed = c.TrimForce(cutoff, maxSize, l)
+	before, freed, _ = c.TrimForce(cutoff, maxSize, l)
 	return
 }
 
@@ -68,28 +68,9 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 // enforcing both cutoff date and max cache size, if set.
 // It ignores the last trim time, but updates it.
 //
+// It returns statistics derived from the same cache scan used for trimming.
 // Passed logger is used for debug messages only.
-func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
-	before, freed, _ = c.trimForce(cutoff, maxSize, false, l)
-	return
-}
-
-// TrimForceWithStats is like [DiskCache.TrimForce], but also returns statistics
-// derived from the same cache scan used for trimming.
-func (c *DiskCache) TrimForceWithStats(
-	cutoff *time.Time,
-	maxSize *int64,
-	l *slog.Logger,
-) (before, freed int64, stats *Stats) {
-	return c.trimForce(cutoff, maxSize, true, l)
-}
-
-func (c *DiskCache) trimForce(
-	cutoff *time.Time,
-	maxSize *int64,
-	wantStats bool,
-	l *slog.Logger,
-) (before, freed int64, stats *Stats) {
+func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64, stats *Stats) {
 	before = -1
 	now := c.now()
 
@@ -109,19 +90,13 @@ func (c *DiskCache) trimForce(
 		)
 	}()
 
-	if cutoff == nil && maxSize == nil && !wantStats {
-		return
-	}
-
 	files, bytes := c.read(l)
 	if cutoff != nil || maxSize != nil {
 		before = bytes
 	}
 
 	if cutoff == nil && maxSize != nil && before <= *maxSize {
-		if wantStats {
-			stats = c.stats(files, l)
-		}
+		stats = c.stats(files, l)
 		return
 	}
 
@@ -165,9 +140,7 @@ func (c *DiskCache) trimForce(
 		}
 	}
 
-	if wantStats {
-		stats = c.stats(files, l)
-	}
+	stats = c.stats(files, l)
 
 	return
 }
