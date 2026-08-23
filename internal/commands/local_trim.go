@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -80,17 +81,60 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		return err
 	}
 
-	before, freed := c.TrimForce()
-	l.Debug(
-		"Local cache trimmed",
-		slog.Int64("before_bytes", before),
-		slog.Int64("freed_bytes", freed),
-	)
+	ctx := context.Background()
+	debugEnabled := l.Enabled(ctx, slog.LevelDebug)
+	infoEnabled := l.Enabled(ctx, slog.LevelInfo)
+	before, freed, stats := c.TrimForce()
+	if before < 0 {
+		before = stats.Bytes + freed
+	}
+
+	if debugEnabled {
+		l.Debug(
+			"Local cache trimmed",
+			slog.Int64("before_bytes", before),
+			slog.Int64("after_bytes", stats.Bytes),
+			slog.Int64("freed_bytes", freed),
+		)
+	}
+	if !infoEnabled {
+		return nil
+	}
+
+	total, free, err := local.DiskInfo(opts.Dir)
+	if err != nil {
+		return err
+	}
+
+	status := newLocalStatusOutput(opts.Dir, stats, total, free)
+
+	formatTime := func(t *string) string {
+		if t == nil {
+			return "n/a"
+		}
+
+		return *t
+	}
+
 	l.Info(
 		"Local cache trimmed",
-		slog.String("directory", opts.Dir),
+		slog.String("directory", status.Directory),
 		slog.String("before", fmt.Sprintf("%s (%d bytes)", unit.Bytes(before), before)),
 		slog.String("freed", fmt.Sprintf("%s (%d bytes)", unit.Bytes(freed), freed)),
+		slog.Group("cache",
+			slog.Int("entries", status.Cache.Entries),
+			slog.String("size", fmt.Sprintf("%s (%d bytes)", status.Cache.Human, status.Cache.Bytes)),
+			slog.String("least_recently_used", formatTime(status.Cache.LeastRecentlyUsed)),
+			slog.String("most_recently_used", formatTime(status.Cache.MostRecentlyUsed)),
+		),
+		slog.Group("disk",
+			slog.String("total", fmt.Sprintf("%s (%d bytes)", status.Disk.TotalHuman, status.Disk.TotalBytes)),
+			slog.String("used", fmt.Sprintf("%s (%d bytes)", status.Disk.UsedHuman, status.Disk.UsedBytes)),
+			slog.String("used_percent", fmt.Sprintf("%.2f%%", status.Disk.UsedPercent)),
+			slog.String("free", fmt.Sprintf("%s (%d bytes)", status.Disk.FreeHuman, status.Disk.FreeBytes)),
+			slog.String("free_percent", fmt.Sprintf("%.2f%%", status.Disk.FreePercent)),
+		),
+		slog.String("cache_of_total_disk", fmt.Sprintf("%.2f%%", status.CacheOfTotalPercent)),
 	)
 
 	return nil

@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -98,12 +100,27 @@ func TestCache(t *testing.T) {
 func TestTrimNoop(t *testing.T) {
 	t.Parallel()
 
-	c, err := New(localtest.Setup(t), nil, nil, logger(t))
+	dir := localtest.Setup(t)
+	trimPath := filepath.Join(dir, "trim.txt")
+	trimBefore, err := os.ReadFile(trimPath)
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	c, err := New(dir, nil, nil, logger(t))
+	musta.NoError(t, err)
+
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, -1)
 	shoulda.BeEqual(t, freed, 0)
+	trimAfter, err := os.ReadFile(trimPath)
+	musta.NoError(t, err)
+	shoulda.BeEqual(t, string(trimAfter), string(trimBefore))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{
+		Entries:           1219,
+		Bytes:             109_518_524,
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local()),
+		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+	})
 }
 
 func TestTrimCutoffNone(t *testing.T) {
@@ -112,9 +129,16 @@ func TestTrimCutoffNone(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(0))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{
+		Entries:           1219,
+		Bytes:             109_518_524,
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local()),
+		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+	})
 }
 
 func TestTrimCutoffAll(t *testing.T) {
@@ -123,9 +147,11 @@ func TestTrimCutoffAll(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2999, time.January, 1, 0, 0, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(109_518_524))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{})
 }
 
 func TestTrimCutoffPart(t *testing.T) {
@@ -134,9 +160,16 @@ func TestTrimCutoffPart(t *testing.T) {
 	c, err := New(localtest.Setup(t), new(time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC)), nil, logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(3_975_344))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{
+		Entries:           794,
+		Bytes:             105_543_180,
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 13, 0, 198000, time.UTC).Local()),
+		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+	})
 }
 
 func TestTrimSizeNone(t *testing.T) {
@@ -145,9 +178,16 @@ func TestTrimSizeNone(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(int64(math.MaxInt64)), logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(0))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{
+		Entries:           1219,
+		Bytes:             109_518_524,
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local()),
+		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+	})
 }
 
 func TestTrimSizeAll(t *testing.T) {
@@ -156,9 +196,11 @@ func TestTrimSizeAll(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(int64(0)), logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(109_518_524))
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{})
 }
 
 func TestTrimSizePart(t *testing.T) {
@@ -168,8 +210,48 @@ func TestTrimSizePart(t *testing.T) {
 	c, err := New(localtest.Setup(t), nil, new(maxSize), logger(t))
 	musta.NoError(t, err)
 
-	before, freed := c.TrimForce()
+	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(60_023_595))
-	shoulda.BeLess(t, before-freed, maxSize)
+
+	shoulda.BeDeepEqual(t, stats, &cache.Stats{
+		Entries:           413,
+		Bytes:             49_494_929,
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 13, 2, 195332000, time.UTC).Local()),
+		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+	})
+}
+
+func TestTrimCutoffAndSize(t *testing.T) {
+	t.Parallel()
+
+	cutoff := new(time.Date(2025, time.November, 17, 17, 13, 0, 0, time.UTC))
+
+	t.Run("cutoff is sufficient", func(t *testing.T) {
+		maxSize := int64(106_000_000)
+		c, err := New(localtest.Setup(t), cutoff, &maxSize, logger(t))
+		musta.NoError(t, err)
+
+		before, freed, stats := c.TrimForce()
+		shoulda.BeEqual(t, before, int64(109_518_524))
+		shoulda.BeEqual(t, freed, int64(3_975_344))
+		shoulda.BeEqual(t, stats.Bytes, int64(105_543_180))
+		shoulda.BeEqual(t, stats.Entries, 794)
+	})
+
+	t.Run("size trimming is also needed", func(t *testing.T) {
+		maxSize := int64(50_000_000)
+		c, err := New(localtest.Setup(t), cutoff, &maxSize, logger(t))
+		musta.NoError(t, err)
+
+		before, freed, stats := c.TrimForce()
+		shoulda.BeEqual(t, before, int64(109_518_524))
+		shoulda.BeEqual(t, freed, int64(60_023_595))
+		shoulda.BeDeepEqual(t, stats, &cache.Stats{
+			Entries:           413,
+			Bytes:             49_494_929,
+			LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 13, 2, 195332000, time.UTC).Local()),
+			MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
+		})
+	})
 }

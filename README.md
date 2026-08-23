@@ -4,8 +4,9 @@
 
 Hardcache is a tool for managing the Go build cache.
 
-The initial public version supports only a more flexible trimming policy of a standard local cache.
-More functionality will be published soon, including support for `GOCACHEPROG`.
+It currently supports local cache status reporting and a more flexible trimming policy
+of a standard local cache. More functionality will be published soon, including support
+for `GOCACHEPROG`.
 
 ## Installation
 
@@ -29,6 +30,20 @@ It can be overridden with `--dir` flag:
 
 ```
 hardcache local --dir=/tmp/cache ...
+```
+
+#### Status
+
+Display current cache and disk usage stats:
+
+```
+hardcache local status
+```
+
+Use compact JSON output for scripting:
+
+```
+hardcache local status --json
 ```
 
 #### Manual trimming
