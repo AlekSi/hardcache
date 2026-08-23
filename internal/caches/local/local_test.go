@@ -104,6 +104,20 @@ func TestTrimNoop(t *testing.T) {
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, -1)
 	shoulda.BeEqual(t, freed, 0)
+
+	stats := c.Stats()
+	shoulda.BeEqual(t, stats.Entries, 1219)
+	shoulda.BeEqual(t, stats.Bytes, int64(109_518_524))
+	musta.NotBeZero(t, stats.Oldest)
+	musta.NotBeZero(t, stats.Newest)
+	musta.NotBeZero(t, stats.LeastRecentlyUsed)
+	musta.NotBeZero(t, stats.MostRecentlyUsed)
+	shoulda.BeEqual(t, stats.Oldest.UnixNano(), int64(1_763_399_577_524_486_000))
+	shoulda.BeEqual(t, stats.Newest.UnixNano(), int64(1_763_399_587_284_280_000))
+	shoulda.BeEqual(t, stats.LeastRecentlyUsed.UnixNano(), int64(1_763_399_577_524_467_000))
+	shoulda.BeEqual(t, stats.MostRecentlyUsed.UnixNano(), int64(1_763_399_587_284_400_000))
+	shoulda.CompareLess(t, *stats.Oldest, *stats.Newest, time.Time.Compare)
+	shoulda.CompareLess(t, *stats.LeastRecentlyUsed, *stats.MostRecentlyUsed, time.Time.Compare)
 }
 
 func TestTrimCutoffNone(t *testing.T) {
@@ -159,6 +173,14 @@ func TestTrimSizeAll(t *testing.T) {
 	before, freed := c.TrimForce()
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(109_518_524))
+
+	stats := c.Stats()
+	shoulda.BeEqual(t, stats.Entries, 0)
+	shoulda.BeEqual(t, stats.Bytes, int64(0))
+	shoulda.BeZero(t, stats.Oldest)
+	shoulda.BeZero(t, stats.Newest)
+	shoulda.BeZero(t, stats.LeastRecentlyUsed)
+	shoulda.BeZero(t, stats.MostRecentlyUsed)
 }
 
 func TestTrimSizePart(t *testing.T) {
@@ -172,44 +194,4 @@ func TestTrimSizePart(t *testing.T) {
 	shoulda.BeEqual(t, before, int64(109_518_524))
 	shoulda.BeEqual(t, freed, int64(60_023_595))
 	shoulda.BeLess(t, before-freed, maxSize)
-}
-
-func TestStatusFixture(t *testing.T) {
-	t.Parallel()
-
-	c, err := New(localtest.Setup(t), nil, nil, logger(t))
-	musta.NoError(t, err)
-
-	stats := c.Stats()
-	shoulda.BeEqual(t, stats.Entries, 1219)
-	shoulda.BeEqual(t, stats.Bytes, int64(109_518_524))
-	musta.NotBeZero(t, stats.Oldest)
-	musta.NotBeZero(t, stats.Newest)
-	musta.NotBeZero(t, stats.LeastRecentlyUsed)
-	musta.NotBeZero(t, stats.MostRecentlyUsed)
-	shoulda.BeEqual(t, stats.Oldest.UnixNano(), int64(1_763_399_577_524_486_000))
-	shoulda.BeEqual(t, stats.Newest.UnixNano(), int64(1_763_399_587_284_280_000))
-	shoulda.BeEqual(t, stats.LeastRecentlyUsed.UnixNano(), int64(1_763_399_577_524_467_000))
-	shoulda.BeEqual(t, stats.MostRecentlyUsed.UnixNano(), int64(1_763_399_587_284_400_000))
-	shoulda.CompareLess(t, *stats.Oldest, *stats.Newest, time.Time.Compare)
-	shoulda.CompareLess(t, *stats.LeastRecentlyUsed, *stats.MostRecentlyUsed, time.Time.Compare)
-}
-
-func TestStatusEmpty(t *testing.T) {
-	t.Parallel()
-
-	c, err := New(localtest.Setup(t), nil, new(int64(0)), logger(t))
-	musta.NoError(t, err)
-
-	before, freed := c.TrimForce()
-	shoulda.BeEqual(t, before, int64(109_518_524))
-	shoulda.BeEqual(t, freed, before)
-
-	stats := c.Stats()
-	shoulda.BeEqual(t, stats.Entries, 0)
-	shoulda.BeEqual(t, stats.Bytes, int64(0))
-	shoulda.BeZero(t, stats.Oldest)
-	shoulda.BeZero(t, stats.Newest)
-	shoulda.BeZero(t, stats.LeastRecentlyUsed)
-	shoulda.BeZero(t, stats.MostRecentlyUsed)
 }
