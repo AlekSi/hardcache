@@ -70,15 +70,7 @@ func (c *Cache) TrimForce() (before, freed int64) {
 
 // Stats returns current local cache statistics.
 func (c *Cache) Stats() *cache.Stats {
-	s := c.dc.Stats(c.l)
-	return &cache.Stats{
-		Entries:           s.Entries,
-		Bytes:             s.Bytes,
-		Oldest:            s.Oldest,
-		Newest:            s.Newest,
-		LeastRecentlyUsed: s.LeastRecentlyUsed,
-		MostRecentlyUsed:  s.MostRecentlyUsed,
-	}
+	return c.dc.Stats(c.l)
 }
 
 // check interfaces
