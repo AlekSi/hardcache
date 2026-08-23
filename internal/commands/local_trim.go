@@ -19,10 +19,6 @@ type LocalTrimOpts struct {
 
 // LocalTrim force-trims a local cache according to the given parameters.
 func LocalTrim(opts *LocalTrimOpts, l *slog.Logger) error {
-	if opts.UnusedFor < 0 {
-		return fmt.Errorf("--unused-for cannot be negative: %d", opts.UnusedFor)
-	}
-
 	if time.Duration(opts.UnusedFor) > 5*24*time.Hour {
 		l.Info("Note: this command should be invoked more often than once per day to keep the cache.")
 	}
@@ -31,6 +27,10 @@ func LocalTrim(opts *LocalTrimOpts, l *slog.Logger) error {
 }
 
 func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error {
+	if opts.UnusedFor < 0 {
+		return fmt.Errorf("--unused-for cannot be negative: %d", opts.UnusedFor)
+	}
+
 	var cutoff *time.Time
 	if opts.UnusedFor > 0 {
 		cutoff = new(now().Add(-time.Duration(opts.UnusedFor)))
