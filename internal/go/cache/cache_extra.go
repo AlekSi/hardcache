@@ -32,7 +32,7 @@ type Stats struct {
 // fileInfo represents information about a file or directory with executable in the cache.
 // The order of fields is weird to make struct smaller.
 type fileInfo struct {
-	LastUse time.Time // file (or directory for executable) last use time (mtime)
+	ModTime time.Time // file modification time, or directory modification time
 	Name    string    // file name, or directory name for executable
 	Size    int64     // file size, or executable size
 }
@@ -95,7 +95,7 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 	if cutoff != nil {
 		for i, fi := range files {
-			if fi.Name == "" || !fi.LastUse.Before(*cutoff) {
+			if fi.Name == "" || !fi.ModTime.Before(*cutoff) {
 				continue
 			}
 
@@ -113,7 +113,7 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 	if maxSize != nil && before-freed > *maxSize {
 		slices.SortFunc(files, func(f1, f2 fileInfo) int {
-			return f1.LastUse.Compare(f2.LastUse)
+			return f1.ModTime.Compare(f2.ModTime)
 		})
 
 		for i, fi := range files {
@@ -146,11 +146,11 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		stats.Entries++
 		stats.Bytes += fi.Size
 
-		if stats.LeastRecentlyUsed == nil || fi.LastUse.Before(*stats.LeastRecentlyUsed) {
-			stats.LeastRecentlyUsed = &fi.LastUse
+		if stats.LeastRecentlyUsed == nil || fi.ModTime.Before(*stats.LeastRecentlyUsed) {
+			stats.LeastRecentlyUsed = &fi.ModTime
 		}
-		if stats.MostRecentlyUsed == nil || fi.LastUse.After(*stats.MostRecentlyUsed) {
-			stats.MostRecentlyUsed = &fi.LastUse
+		if stats.MostRecentlyUsed == nil || fi.ModTime.After(*stats.MostRecentlyUsed) {
+			stats.MostRecentlyUsed = &fi.ModTime
 		}
 	}
 
@@ -184,7 +184,7 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 			}
 
 			size := fi.Size()
-			lastUse := fi.ModTime()
+			modTime := fi.ModTime()
 
 			if fi.IsDir() {
 				entrs, err := os.ReadDir(filepath.Join(subdir, name))
@@ -209,7 +209,7 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 
 			before += size
 			files = append(files, fileInfo{
-				LastUse: lastUse,
+				ModTime: modTime,
 				Name:    name,
 				Size:    size,
 			})
