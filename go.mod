@@ -2,8 +2,6 @@ module github.com/AlekSi/hardcache
 
 go 1.26
 
-toolchain go1.26.6
-
 // https://go.dev/doc/godebug#go-120
 // https://pkg.go.dev/archive/tar#Reader.Next
 // https://pkg.go.dev/archive/zip#OpenReader
@@ -14,7 +12,7 @@ godebug (
 
 require (
 	github.com/AlekSi/lazyerrors v0.6.0
-	github.com/AlekSi/shoulda v0.0.0-20260812055123-b29ca4861702
+	github.com/AlekSi/shoulda v0.0.0-20260822211907-a816281ba9e8
 	github.com/alecthomas/kong v1.16.1
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/xhit/go-str2duration/v2 v2.1.0
