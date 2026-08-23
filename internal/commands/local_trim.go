@@ -26,6 +26,7 @@ func LocalTrim(opts *LocalTrimOpts, l *slog.Logger) error {
 	return localTrim(opts, time.Now, l)
 }
 
+// localTrim force-trims a local cache according to the given parameters.
 func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error {
 	if opts.UnusedFor < 0 {
 		return fmt.Errorf("--unused-for cannot be negative: %d", opts.UnusedFor)

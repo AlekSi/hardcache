@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -18,6 +19,10 @@ type LocalTrimdOpts struct {
 
 // LocalTrimd continuously trims a local cache until ctx is canceled.
 func LocalTrimd(ctx context.Context, opts *LocalTrimdOpts, l *slog.Logger) error {
+	if opts.Interval <= 0 {
+		return fmt.Errorf("--interval must be positive: %d", opts.Interval)
+	}
+
 	trimOpts := &LocalTrimOpts{
 		Dir:       opts.Dir,
 		UnusedFor: opts.UnusedFor,
