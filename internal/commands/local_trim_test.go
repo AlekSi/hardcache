@@ -43,8 +43,8 @@ func TestLocalTrim(t *testing.T) {
 		timestamp, err := time.Parse(time.RFC3339Nano, m["time"].(string))
 		musta.NoError(t, err)
 
-		shoulda.BeFalse(t, timestamp.Before(started))
-		shoulda.BeFalse(t, timestamp.After(finished))
+		shoulda.Satisfy(t, timestamp, started.Before)
+		shoulda.Satisfy(t, timestamp, finished.After)
 		delete(m, "time")
 
 		actual = append(actual, m)
