@@ -184,11 +184,11 @@ func TestTrimSizeNone(t *testing.T) {
 
 	stats := c.Stats()
 	shoulda.BeDeepEqual(t, stats, &cache.Stats{
-		Entries:           413,
-		Bytes:             49_494_929,
-		Oldest:            new(time.Date(2025, time.November, 17, 17, 13, 2, 195197000, time.UTC).Local()),
+		Entries:           1219,
+		Bytes:             109_518_524,
+		Oldest:            new(time.Date(2025, time.November, 17, 17, 12, 57, 524486000, time.UTC).Local()),
 		Newest:            new(time.Date(2025, time.November, 17, 17, 13, 7, 284280000, time.UTC).Local()),
-		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 13, 2, 195332000, time.UTC).Local()),
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local()),
 		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
 	})
 }
@@ -220,11 +220,11 @@ func TestTrimSizePart(t *testing.T) {
 
 	stats := c.Stats()
 	shoulda.BeDeepEqual(t, stats, &cache.Stats{
-		Entries:           1219,
-		Bytes:             109_518_524,
-		Oldest:            new(time.Date(2025, time.November, 17, 17, 12, 57, 524486000, time.UTC).Local()),
+		Entries:           413,
+		Bytes:             49_494_929,
+		Oldest:            new(time.Date(2025, time.November, 17, 17, 13, 2, 195197000, time.UTC).Local()),
 		Newest:            new(time.Date(2025, time.November, 17, 17, 13, 7, 284280000, time.UTC).Local()),
-		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 12, 57, 524467000, time.UTC).Local()),
+		LeastRecentlyUsed: new(time.Date(2025, time.November, 17, 17, 13, 2, 195332000, time.UTC).Local()),
 		MostRecentlyUsed:  new(time.Date(2025, time.November, 17, 17, 13, 7, 284400000, time.UTC).Local()),
 	})
 }
