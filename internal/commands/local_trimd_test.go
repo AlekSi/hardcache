@@ -15,15 +15,17 @@ import (
 	"github.com/AlekSi/hardcache/internal/unit"
 )
 
-func TestLocalTrimdStatistics(t *testing.T) {
+func TestLocalTrimd(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	dir := localtest.Setup(t)
-	var output strings.Builder
-	l := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	var buf strings.Builder
+	l := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	started := time.Now()
 	musta.NoError(t, LocalTrimd(ctx, &LocalTrimdOpts{
 		Dir:      dir,
@@ -32,22 +34,41 @@ func TestLocalTrimdStatistics(t *testing.T) {
 	}, l))
 	finished := time.Now()
 
-	lines := strings.Split(strings.TrimSpace(output.String()), "\n")
-	actual := make([]map[string]any, 2)
-	for i, line := range lines[len(lines)-2:] {
-		musta.NoError(t, json.Unmarshal([]byte(line), &actual[i]))
-		timestamp := musta.NotFail(time.Parse(time.RFC3339Nano, actual[i]["time"].(string)))(t)
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	shoulda.BeEqual(t, len(lines), 810)
+
+	lines = lines[len(lines)-3:]
+
+	var actual []map[string]any
+	for _, line := range lines {
+		t.Log(line)
+
+		var m map[string]any
+		musta.NoError(t, json.Unmarshal([]byte(line), &m))
+
+		timestamp, err := time.Parse(time.RFC3339Nano, m["time"].(string))
+		musta.NoError(t, err)
+
 		shoulda.BeFalse(t, timestamp.Before(started))
 		shoulda.BeFalse(t, timestamp.After(finished))
-		delete(actual[i], "time")
+		delete(m, "time")
+
+		actual = append(actual, m)
 	}
 
 	shoulda.BeDeepEqual(t, actual, []map[string]any{
 		{
 			"level":        "DEBUG",
+			"msg":          "trim.txt updated",
+			"before_bytes": 109518524.0,
+			"after_bytes":  49494929.0,
+			"freed_bytes":  60023595.0,
+		},
+		{
+			"level":        "DEBUG",
 			"msg":          "Local cache trimmed",
-			"before_bytes": float64(109_518_524),
-			"freed_bytes":  float64(60_023_595),
+			"before_bytes": 109518524.0,
+			"freed_bytes":  60023595.0,
 		},
 		{
 			"level":     "INFO",
