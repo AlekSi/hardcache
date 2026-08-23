@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/AlekSi/hardcache/internal/caches/local"
+	"github.com/AlekSi/hardcache/internal/go/cache"
 	"github.com/AlekSi/hardcache/internal/unit"
 )
 
@@ -64,7 +65,7 @@ func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
 	return err
 }
 
-func newLocalStatusOutput(dir string, stats *local.Stats, total, free int64) localStatusOutput {
+func newLocalStatusOutput(dir string, stats *cache.Stats, total, free int64) localStatusOutput {
 	used := max(total-free, 0)
 	percent := func(value int64) float64 {
 		if total <= 0 {
@@ -113,7 +114,8 @@ func (s localStatusOutput) String() string {
 		return *t
 	}
 
-	return fmt.Sprintf(`Directory: %s
+	return fmt.Sprintf(
+		`Directory: %s
 Cache entries: %d
 Cache size: %s (%d bytes)
 Oldest entry: %s

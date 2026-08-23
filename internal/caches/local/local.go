@@ -20,18 +20,6 @@ type Cache struct {
 	l       *slog.Logger
 }
 
-// Stats describes local cache state.
-// Oldest and Newest are action-entry add times. LeastRecentlyUsed and
-// MostRecentlyUsed are approximate last-use times.
-type Stats struct {
-	Entries           int
-	Bytes             int64
-	Oldest            *time.Time
-	Newest            *time.Time
-	LeastRecentlyUsed *time.Time
-	MostRecentlyUsed  *time.Time
-}
-
 // New creates a new [Cache].
 func New(dir string, cutoff *time.Time, maxSize *int64, l *slog.Logger) (*Cache, error) {
 	dc, err := cache.Open(dir)
@@ -81,9 +69,9 @@ func (c *Cache) TrimForce() (before, freed int64) {
 }
 
 // Stats returns current local cache statistics.
-func (c *Cache) Stats() *Stats {
+func (c *Cache) Stats() *cache.Stats {
 	s := c.dc.Stats(c.l)
-	return &Stats{
+	return &cache.Stats{
 		Entries:           s.Entries,
 		Bytes:             s.Bytes,
 		Oldest:            s.Oldest,
