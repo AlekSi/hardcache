@@ -69,11 +69,6 @@ func (c *Cache) TrimForce() (before, freed int64, stats *cache.Stats) {
 	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)
 }
 
-// Stats returns current local cache statistics.
-func (c *Cache) Stats() *cache.Stats {
-	return c.dc.Stats(c.l)
-}
-
 // check interfaces
 var (
 	_ cache.Cache = (*Cache)(nil)

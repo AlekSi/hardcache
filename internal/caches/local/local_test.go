@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -98,12 +100,20 @@ func TestCache(t *testing.T) {
 func TestTrimNoop(t *testing.T) {
 	t.Parallel()
 
-	c, err := New(localtest.Setup(t), nil, nil, logger(t))
+	dir := localtest.Setup(t)
+	trimPath := filepath.Join(dir, "trim.txt")
+	trimBefore, err := os.ReadFile(trimPath)
+	musta.NoError(t, err)
+
+	c, err := New(dir, nil, nil, logger(t))
 	musta.NoError(t, err)
 
 	before, freed, stats := c.TrimForce()
 	shoulda.BeEqual(t, before, -1)
 	shoulda.BeEqual(t, freed, 0)
+	trimAfter, err := os.ReadFile(trimPath)
+	musta.NoError(t, err)
+	shoulda.BeEqual(t, string(trimAfter), string(trimBefore))
 
 	shoulda.BeDeepEqual(t, stats, &cache.Stats{
 		Entries:           1219,

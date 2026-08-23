@@ -37,7 +37,8 @@ func TestLocalTrim(t *testing.T) {
 func checkLocalTrimOutput(t *testing.T, dir string, buf *strings.Builder, l *slog.Logger, started time.Time, finished time.Time) {
 	t.Helper()
 
-	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Stats()
+	c := musta.NotFail(local.New(dir, nil, nil, l))(t)
+	_, _, stats := c.TrimForce()
 	shoulda.BeEqual(t, stats.Bytes, int64(49_494_929))
 	shoulda.BeGreater(t, stats.Entries, 0)
 

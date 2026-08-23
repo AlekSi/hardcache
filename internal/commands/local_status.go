@@ -50,7 +50,7 @@ func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
 		return err
 	}
 
-	stats := c.Stats()
+	_, _, stats := c.TrimForce()
 	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
