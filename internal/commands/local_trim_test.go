@@ -22,25 +22,19 @@ func TestLocalTrim(t *testing.T) {
 	var buf strings.Builder
 	l := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	started := time.Now().Add(-time.Second).Truncate(time.Second)
+	started := time.Now()
 
 	musta.NoError(t, LocalTrim(&LocalTrimOpts{
 		Dir:     dir,
 		MaxSize: "50MB",
 	}, l))
 
-	finished := time.Now().Add(time.Second).Truncate(time.Second)
+	finished := time.Now()
+
 	checkLocalTrimOutput(t, dir, &buf, l, started, finished)
 }
 
-func checkLocalTrimOutput(
-	t *testing.T,
-	dir string,
-	buf *strings.Builder,
-	l *slog.Logger,
-	started time.Time,
-	finished time.Time,
-) {
+func checkLocalTrimOutput(t *testing.T, dir string, buf *strings.Builder, l *slog.Logger, started time.Time, finished time.Time) {
 	t.Helper()
 
 	stats := musta.NotFail(local.New(dir, nil, nil, l))(t).Stats()
@@ -67,8 +61,8 @@ func checkLocalTrimOutput(
 		timestamp, err := time.Parse(time.RFC3339Nano, m["time"].(string))
 		musta.NoError(t, err)
 
-		shoulda.Satisfy(t, timestamp, started.Before)
-		shoulda.Satisfy(t, timestamp, finished.After)
+		shoulda.NotSatisfy(t, timestamp, started.After)
+		shoulda.NotSatisfy(t, timestamp, finished.Before)
 		delete(m, "time")
 
 		actual = append(actual, m)

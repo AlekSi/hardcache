@@ -24,7 +24,7 @@ func TestLocalTrimd(t *testing.T) {
 	var buf strings.Builder
 	l := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	started := time.Now().Add(-time.Second).Truncate(time.Second)
+	started := time.Now()
 
 	musta.NoError(t, LocalTrimd(ctx, &LocalTrimdOpts{
 		Dir:      dir,
@@ -32,6 +32,7 @@ func TestLocalTrimd(t *testing.T) {
 		Interval: unit.Duration(time.Hour),
 	}, l))
 
-	finished := time.Now().Add(time.Second).Truncate(time.Second)
+	finished := time.Now()
+
 	checkLocalTrimOutput(t, dir, &buf, l, started, finished)
 }
