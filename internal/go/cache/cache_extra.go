@@ -70,6 +70,26 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 //
 // Passed logger is used for debug messages only.
 func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
+	before, freed, _ = c.trimForce(cutoff, maxSize, false, l)
+	return
+}
+
+// TrimForceWithStats is like [DiskCache.TrimForce], but also returns statistics
+// derived from the same cache scan used for trimming.
+func (c *DiskCache) TrimForceWithStats(
+	cutoff *time.Time,
+	maxSize *int64,
+	l *slog.Logger,
+) (before, freed int64, stats *Stats) {
+	return c.trimForce(cutoff, maxSize, true, l)
+}
+
+func (c *DiskCache) trimForce(
+	cutoff *time.Time,
+	maxSize *int64,
+	wantStats bool,
+	l *slog.Logger,
+) (before, freed int64, stats *Stats) {
 	before = -1
 	now := c.now()
 
@@ -89,24 +109,26 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		)
 	}()
 
-	if cutoff == nil && maxSize == nil {
+	if cutoff == nil && maxSize == nil && !wantStats {
 		return
 	}
 
-	files, before := c.read(l)
-
-	if cutoff == nil && before <= *maxSize {
-		return
+	files, bytes := c.read(l)
+	if cutoff != nil || maxSize != nil {
+		before = bytes
 	}
 
-	slices.SortFunc(files, func(f1, f2 fileInfo) int {
-		return f1.LastUse.Compare(f2.LastUse)
-	})
+	if cutoff == nil && maxSize != nil && before <= *maxSize {
+		if wantStats {
+			stats = c.stats(files, l)
+		}
+		return
+	}
 
 	if cutoff != nil {
 		for i, fi := range files {
-			if !fi.LastUse.Before(*cutoff) {
-				break
+			if fi.Name == "" || !fi.LastUse.Before(*cutoff) {
+				continue
 			}
 
 			p := filepath.Join(c.dir, fi.Name[:2], fi.Name)
@@ -121,10 +143,10 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	if maxSize != nil {
-		for _, fi := range files {
+	if sortForMaxSize(files, before-freed, maxSize) {
+		for i, fi := range files {
 			if before-freed <= *maxSize {
-				return
+				break
 			}
 
 			if fi.Name == "" {
@@ -139,70 +161,107 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 			l.Debug("Removed entry by max size", slog.String("name", p))
 			freed += fi.Size
+			files[i] = fileInfo{}
 		}
+	}
+
+	if wantStats {
+		stats = c.stats(files, l)
 	}
 
 	return
 }
 
+func sortForMaxSize(files []fileInfo, size int64, maxSize *int64) bool {
+	if maxSize == nil || size <= *maxSize {
+		return false
+	}
+
+	slices.SortFunc(files, func(f1, f2 fileInfo) int {
+		return f1.LastUse.Compare(f2.LastUse)
+	})
+	return true
+}
+
 // Stats scans the cache directory and returns aggregate statistics.
 func (c *DiskCache) Stats(l *slog.Logger) *Stats {
-	files, bytes := c.read(l)
-	stats := &Stats{
-		Entries: len(files),
-		Bytes:   bytes,
-	}
-
-	for _, fi := range files {
-		if stats.LeastRecentlyUsed == nil || fi.LastUse.Before(*stats.LeastRecentlyUsed) {
-			stats.LeastRecentlyUsed = &fi.LastUse
-		}
-		if stats.MostRecentlyUsed == nil || fi.LastUse.After(*stats.MostRecentlyUsed) {
-			stats.MostRecentlyUsed = &fi.LastUse
-		}
-
-		if !strings.HasSuffix(fi.Name, "-a") {
-			continue
-		}
-
-		path := filepath.Join(c.dir, fi.Name[:2], fi.Name)
-		entry, err := os.ReadFile(path)
-		if err != nil {
-			l.Debug("Failed to read action entry", slog.String("name", path), slog.String("error", err.Error()))
-			continue
-		}
-		if len(entry) != entrySize {
-			l.Debug("Invalid action entry", slog.String("name", path))
-			continue
-		}
-
-		b := entry[actionEntryTimeOffset : actionEntryTimeOffset+actionEntryTimeSize]
-		ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
-		if err != nil {
-			l.Debug("Failed to parse action entry time", slog.String("name", path), slog.String("error", err.Error()))
-			continue
-		}
-		if ns < 0 {
-			l.Debug("Invalid action entry time", slog.String("name", path), slog.Int64("timestamp", ns))
-			continue
-		}
-
-		added := time.Unix(0, ns)
-		if stats.Oldest == nil || added.Before(*stats.Oldest) {
-			stats.Oldest = &added
-		}
-		if stats.Newest == nil || added.After(*stats.Newest) {
-			stats.Newest = &added
-		}
-	}
-
+	stats := new(Stats)
+	c.walk(l, func(fi fileInfo) {
+		c.addStats(stats, fi, l)
+	})
 	return stats
+}
+
+func (c *DiskCache) stats(files []fileInfo, l *slog.Logger) *Stats {
+	stats := new(Stats)
+	for _, fi := range files {
+		if fi.Name == "" {
+			continue
+		}
+
+		c.addStats(stats, fi, l)
+	}
+	return stats
+}
+
+func (c *DiskCache) addStats(stats *Stats, fi fileInfo, l *slog.Logger) {
+	stats.Entries++
+	stats.Bytes += fi.Size
+
+	if stats.LeastRecentlyUsed == nil || fi.LastUse.Before(*stats.LeastRecentlyUsed) {
+		stats.LeastRecentlyUsed = &fi.LastUse
+	}
+	if stats.MostRecentlyUsed == nil || fi.LastUse.After(*stats.MostRecentlyUsed) {
+		stats.MostRecentlyUsed = &fi.LastUse
+	}
+
+	if !strings.HasSuffix(fi.Name, "-a") {
+		return
+	}
+
+	path := filepath.Join(c.dir, fi.Name[:2], fi.Name)
+	entry, err := os.ReadFile(path)
+	if err != nil {
+		l.Debug("Failed to read action entry", slog.String("name", path), slog.String("error", err.Error()))
+		return
+	}
+	if len(entry) != entrySize {
+		l.Debug("Invalid action entry", slog.String("name", path))
+		return
+	}
+
+	b := entry[actionEntryTimeOffset : actionEntryTimeOffset+actionEntryTimeSize]
+	ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
+	if err != nil {
+		l.Debug("Failed to parse action entry time", slog.String("name", path), slog.String("error", err.Error()))
+		return
+	}
+	if ns < 0 {
+		l.Debug("Invalid action entry time", slog.String("name", path), slog.Int64("timestamp", ns))
+		return
+	}
+
+	added := time.Unix(0, ns)
+	if stats.Oldest == nil || added.Before(*stats.Oldest) {
+		stats.Oldest = &added
+	}
+	if stats.Newest == nil || added.After(*stats.Newest) {
+		stats.Newest = &added
+	}
 }
 
 // read reads the entire cache directory.
 func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 	files = make([]fileInfo, 0, 256)
+	c.walk(l, func(fi fileInfo) {
+		files = append(files, fi)
+		before += fi.Size
+	})
+	return
+}
 
+// walk calls yield for every valid cache entry in the cache directory.
+func (c *DiskCache) walk(l *slog.Logger, yield func(fileInfo)) {
 	for i := range 256 {
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
 
@@ -250,14 +309,11 @@ func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 				size = fi.Size()
 			}
 
-			before += size
-			files = append(files, fileInfo{
+			yield(fileInfo{
 				LastUse: lastUse,
 				Name:    name,
 				Size:    size,
 			})
 		}
 	}
-
-	return
 }

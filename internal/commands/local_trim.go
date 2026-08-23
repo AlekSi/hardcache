@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -80,17 +81,37 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		return err
 	}
 
-	before, freed := c.TrimForce()
-	stats := c.Stats()
+	ctx := context.Background()
+	debugEnabled := l.Enabled(ctx, slog.LevelDebug)
+	infoEnabled := l.Enabled(ctx, slog.LevelInfo)
+	if !debugEnabled && !infoEnabled {
+		c.TrimForce()
+		return nil
+	}
+
+	before, freed, stats := c.TrimForceWithStats()
+	if before < 0 {
+		before = stats.Bytes + freed
+	}
+
+	if debugEnabled {
+		l.Debug(
+			"Local cache trimmed",
+			slog.Int64("before_bytes", before),
+			slog.Int64("after_bytes", stats.Bytes),
+			slog.Int64("freed_bytes", freed),
+		)
+	}
+	if !infoEnabled {
+		return nil
+	}
+
 	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
 	}
 
 	status := newLocalStatusOutput(opts.Dir, stats, total, free)
-	if before < 0 {
-		before = stats.Bytes + freed
-	}
 
 	formatTime := func(t *string) string {
 		if t == nil {
@@ -100,12 +121,6 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		return *t
 	}
 
-	l.Debug(
-		"Local cache trimmed",
-		slog.Int64("before_bytes", before),
-		slog.Int64("after_bytes", stats.Bytes),
-		slog.Int64("freed_bytes", freed),
-	)
 	l.Info(
 		"Local cache trimmed",
 		slog.String("directory", status.Directory),
