@@ -124,8 +124,6 @@ func localTrim(opts *LocalTrimOpts, now func() time.Time, l *slog.Logger) error 
 		slog.Group("cache",
 			slog.Int("entries", status.Cache.Entries),
 			slog.String("size", fmt.Sprintf("%s (%d bytes)", status.Cache.Human, status.Cache.Bytes)),
-			slog.String("oldest", formatTime(status.Cache.Oldest)),
-			slog.String("newest", formatTime(status.Cache.Newest)),
 			slog.String("least_recently_used", formatTime(status.Cache.LeastRecentlyUsed)),
 			slog.String("most_recently_used", formatTime(status.Cache.MostRecentlyUsed)),
 		),

@@ -20,19 +20,11 @@ import (
 // EntryNotFoundError is exported for use in other packages.
 type EntryNotFoundError = entryNotFoundError
 
-const (
-	actionEntryTimeSize   = 20
-	actionEntryTimeOffset = entrySize - actionEntryTimeSize - 1
-)
-
 // Stats describes cache state derived from a full directory scan.
-// Oldest and Newest are add times from action entries (-a); data entries (-d) do not store add times.
 // LeastRecentlyUsed and MostRecentlyUsed are approximate last-use times from filesystem mtimes.
 type Stats struct {
 	Entries           int
 	Bytes             int64
-	Oldest            *time.Time
-	Newest            *time.Time
 	LeastRecentlyUsed *time.Time
 	MostRecentlyUsed  *time.Time
 }
@@ -159,40 +151,6 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 		if stats.MostRecentlyUsed == nil || fi.LastUse.After(*stats.MostRecentlyUsed) {
 			stats.MostRecentlyUsed = &fi.LastUse
-		}
-
-		if !strings.HasSuffix(fi.Name, "-a") {
-			continue
-		}
-
-		path := filepath.Join(c.dir, fi.Name[:2], fi.Name)
-		entry, err := os.ReadFile(path)
-		if err != nil {
-			l.Debug("Failed to read action entry", slog.String("name", path), slog.String("error", err.Error()))
-			continue
-		}
-		if len(entry) != entrySize {
-			l.Debug("Invalid action entry", slog.String("name", path))
-			continue
-		}
-
-		b := entry[actionEntryTimeOffset : actionEntryTimeOffset+actionEntryTimeSize]
-		ns, err := strconv.ParseInt(strings.TrimLeft(string(b), " "), 10, 64)
-		if err != nil {
-			l.Debug("Failed to parse action entry time", slog.String("name", path), slog.String("error", err.Error()))
-			continue
-		}
-		if ns < 0 {
-			l.Debug("Invalid action entry time", slog.String("name", path), slog.Int64("timestamp", ns))
-			continue
-		}
-
-		added := time.Unix(0, ns)
-		if stats.Oldest == nil || added.Before(*stats.Oldest) {
-			stats.Oldest = &added
-		}
-		if stats.Newest == nil || added.After(*stats.Newest) {
-			stats.Newest = &added
 		}
 	}
 

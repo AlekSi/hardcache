@@ -43,8 +43,6 @@ func checkLocalTrimOutput(t *testing.T, dir string, buf *strings.Builder, l *slo
 	shoulda.BeGreater(t, stats.Entries, 0)
 
 	status := newLocalStatusOutput(dir, stats, 0, 0)
-	musta.NotBeZero(t, status.Cache.Oldest)
-	musta.NotBeZero(t, status.Cache.Newest)
 	musta.NotBeZero(t, status.Cache.LeastRecentlyUsed)
 	musta.NotBeZero(t, status.Cache.MostRecentlyUsed)
 
@@ -105,8 +103,6 @@ func checkLocalTrimOutput(t *testing.T, dir string, buf *strings.Builder, l *slo
 			"cache": map[string]any{
 				"entries":             float64(status.Cache.Entries),
 				"size":                "49MB (49494929 bytes)",
-				"oldest":              *status.Cache.Oldest,
-				"newest":              *status.Cache.Newest,
 				"least_recently_used": *status.Cache.LeastRecentlyUsed,
 				"most_recently_used":  *status.Cache.MostRecentlyUsed,
 			},

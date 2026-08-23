@@ -19,8 +19,6 @@ type localStatusOutput struct {
 		Entries           int     `json:"entries"`
 		Bytes             int64   `json:"bytes"`
 		Human             string  `json:"human"`
-		Oldest            *string `json:"oldest"`
-		Newest            *string `json:"newest"`
 		LeastRecentlyUsed *string `json:"least_recently_used"`
 		MostRecentlyUsed  *string `json:"most_recently_used"`
 	} `json:"cache"`
@@ -89,8 +87,6 @@ func newLocalStatusOutput(dir string, stats *cache.Stats, total, free int64) loc
 
 		return new(t.Local().Format(time.RFC3339))
 	}
-	res.Cache.Oldest = formatTime(stats.Oldest)
-	res.Cache.Newest = formatTime(stats.Newest)
 	res.Cache.LeastRecentlyUsed = formatTime(stats.LeastRecentlyUsed)
 	res.Cache.MostRecentlyUsed = formatTime(stats.MostRecentlyUsed)
 	res.Disk.TotalBytes = total
@@ -118,8 +114,6 @@ func (s localStatusOutput) String() string {
 		`Directory: %s
 Cache entries: %d
 Cache size: %s (%d bytes)
-Oldest entry: %s
-Newest entry: %s
 Least recently used: %s
 Most recently used: %s
 Disk total: %s (%d bytes)
@@ -130,8 +124,6 @@ Cache of total disk: %.2f%%
 		s.Directory,
 		s.Cache.Entries,
 		s.Cache.Human, s.Cache.Bytes,
-		formatTime(s.Cache.Oldest),
-		formatTime(s.Cache.Newest),
 		formatTime(s.Cache.LeastRecentlyUsed),
 		formatTime(s.Cache.MostRecentlyUsed),
 		s.Disk.TotalHuman, s.Disk.TotalBytes,
