@@ -1,4 +1,4 @@
-// Package local provides local Go build cache.
+// Package local provides local cache, fully compatible with the built-in one.
 package local
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/AlekSi/hardcache/internal/go/cache"
 )
 
-// Cache represents a local Go build cache, compatible with a built-in one.
+// Cache represents a local [cache.Cache], fully compatible with the built-in one.
 // It provides more configuration options for trimming.
 type Cache struct {
 	dc      *cache.DiskCache
