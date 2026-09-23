@@ -1,7 +1,7 @@
 github.com/AlekSi/lazyerrors v0.6.0 h1:TX4iCP7N+YOuOmUl6Gv5OQ7brhPzPPrSsEAm+at+avk=
 github.com/AlekSi/lazyerrors v0.6.0/go.mod h1:TresBdOmCoC169IDo09YbrYUDXiqRwlLpInBeS1qD2g=
-github.com/AlekSi/shoulda v0.0.0-20260822211907-a816281ba9e8 h1:PtLNw2ECAPhUCCJvy+ASrZgDaFV5XKh184qJ/vx0CXs=
-github.com/AlekSi/shoulda v0.0.0-20260822211907-a816281ba9e8/go.mod h1:2BlJHePkF/aGLNg+T2Zqoa6AzrXFB11MQpFxq4TBK2g=
+github.com/AlekSi/shoulda v0.0.1 h1:7wdUHXfzY0OLTVx0DJAk5uxb+jcg/a5Nrfo9lg2sT5I=
+github.com/AlekSi/shoulda v0.0.1/go.mod h1:2BlJHePkF/aGLNg+T2Zqoa6AzrXFB11MQpFxq4TBK2g=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/kong v1.16.1 h1:ixhCt93XkJ98kGposQ54+bl0IK6XwqB40AsMynU7Z8E=
@@ -31,10 +31,10 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/xhit/go-str2duration/v2 v2.1.0 h1:lxklc02Drh6ynqX+DdPyp5pCKLUQpRT8bp8Ydu2Bstc=
-github.com/xhit/go-str2duration/v2 v2.1.0/go.mod h1:ohY8p+0f07DiV6Em5LKB0s2YpLtXVyJfNt1+BlmyAsU=
-golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
-golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
+github.com/xhit/go-str2duration/v2 v2.2.0 h1:SofrD1D+8IuhhkP+OiG1ij4Zq+FiiYSEY/sORBanDG0=
+github.com/xhit/go-str2duration/v2 v2.2.0/go.mod h1:ohY8p+0f07DiV6Em5LKB0s2YpLtXVyJfNt1+BlmyAsU=
+golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
+golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
