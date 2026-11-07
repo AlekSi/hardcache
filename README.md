@@ -69,6 +69,33 @@ hardcache local trimd --unused-for=2w --max-size=10GB --interval=1h
 
 Using `trimd` subcommand instead of `trim` triggers trimming every specified interval.
 
+#### Keeping recently used entries
+
+`--max-size` removes the least recently used entries even if they were used a few minutes ago,
+so if the working set is larger than `--max-size`, it is removed and rebuilt over and over.
+Both `trim` and `trimd` support two flags to prevent that:
+
+* `--keep-used-within` makes entries used within the given duration hot.
+  `--max-size` never removes hot entries, so the cache may stay larger than `--max-size` by their size (a surge zone).
+* `--hard-max-size` limits that surge. It uses the same syntax as `--max-size` (including percentages)
+  and can't be less than it.
+  If the cache is still larger than `--hard-max-size`, the least recently used entries are removed, hot ones included.
+  Without it, hot entries are always kept.
+
+```
+hardcache local trimd --interval=10m --unused-for=24h --max-size=30GB --keep-used-within=3h --hard-max-size=60GB
+```
+
+This command would remove entries unused for 24 hours,
+then remove the least recently used entries until the cache is 30GB, but keep entries used in the last 3 hours,
+and then, if the cache is still larger than 60GB, remove the least recently used entries, hot or not, until it is 60GB.
+How much the cache is larger than `--max-size` because of hot entries is logged as `surge`.
+
+Go updates the usage time of a cache entry at most once per hour,
+so `--keep-used-within` protects entries used within about one hour less than its value; use `2h` or more.
+`--unused-for` must be longer than `--keep-used-within` (or 0).
+`--hard-max-size` without `--max-size` works as a plain least-recently-used size limit.
+
 ## Credits
 
 This tool is written by me, Alexey Palazhchenko,
