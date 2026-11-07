@@ -28,10 +28,35 @@ type fileInfo struct {
 	Size    int64     // file size, or executable size
 }
 
+// TrimLimits contains limits enforced by [DiskCache.TrimExtra] and [DiskCache.TrimForce].
+// Nil fields are not enforced.
+//
+// Entries are ordered by their modification time, which Go updates when an entry is used,
+// but at most once per mtimeInterval (1 hour).
+type TrimLimits struct {
+	// Cutoff removes all entries last used before this time.
+	Cutoff *time.Time
+
+	// MaxSize removes entries, starting from least recently used,
+	// until the cache size is not larger than this value.
+	// Hot entries (see KeepAfter) are kept, so the cache may remain larger.
+	MaxSize *int64
+
+	// KeepAfter makes entries last used at or after this time hot:
+	// they are not removed by MaxSize (but still could be removed by Cutoff or HardMaxSize).
+	KeepAfter *time.Time
+
+	// HardMaxSize removes entries, starting from least recently used, hot ones included,
+	// until the cache size is not larger than this value.
+	HardMaxSize *int64
+}
+
 // TrimExtra removes cache entries (starting from least recently used),
-// enforcing both cutoff date and max cache size, if set.
+// enforcing the given limits.
 // Like [Trim], it honors the last trim time, doing nothing if the last trim was recent.
-func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
+//
+// See [DiskCache.TrimForce] for the returned values.
+func (c *DiskCache) TrimExtra(limits TrimLimits, l *slog.Logger) (before, freed, surge int64) {
 	// see DiskCache.Trim
 	if data, err := lockedfile.Read(filepath.Join(c.dir, "trim.txt")); err == nil {
 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
@@ -43,16 +68,20 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	before, freed = c.TrimForce(cutoff, maxSize, l)
+	before, freed, surge = c.TrimForce(limits, l)
 	return
 }
 
 // TrimForce removes cache entries (starting from least recently used),
-// enforcing both cutoff date and max cache size, if set.
+// enforcing the given limits.
 // It ignores the last trim time, but updates it.
 //
+// It returns the cache size before trimming (or -1 if no limits are set),
+// the number of freed bytes,
+// and the number of bytes the cache remains above MaxSize because hot entries were kept.
+//
 // Passed logger is used for debug messages only.
-func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
+func (c *DiskCache) TrimForce(limits TrimLimits, l *slog.Logger) (before, freed, surge int64) {
 	before = -1
 	now := c.now()
 
@@ -72,13 +101,18 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		)
 	}()
 
-	if cutoff == nil && maxSize == nil {
+	if limits.Cutoff == nil && limits.MaxSize == nil && limits.HardMaxSize == nil {
 		return
 	}
 
 	files, before := c.read(l)
 
-	if cutoff == nil && before <= *maxSize {
+	// over returns true if the cache is currently larger than the given limit.
+	over := func(limit *int64) bool {
+		return limit != nil && before-freed > *limit
+	}
+
+	if limits.Cutoff == nil && !over(limits.MaxSize) && !over(limits.HardMaxSize) {
 		return
 	}
 
@@ -86,9 +120,14 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		return f1.ModTime.Compare(f2.ModTime)
 	})
 
-	if cutoff != nil {
+	// hot returns true if the given entry should not be removed by max size.
+	hot := func(fi fileInfo) bool {
+		return limits.KeepAfter != nil && !fi.ModTime.Before(*limits.KeepAfter)
+	}
+
+	if limits.Cutoff != nil {
 		for i, fi := range files {
-			if !fi.ModTime.Before(*cutoff) {
+			if !fi.ModTime.Before(*limits.Cutoff) {
 				break
 			}
 
@@ -104,14 +143,22 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	if maxSize != nil {
-		for _, fi := range files {
-			if before-freed <= *maxSize {
-				return
+	var keptHot bool
+
+	if limits.MaxSize != nil {
+		for i, fi := range files {
+			if !over(limits.MaxSize) {
+				break
 			}
 
 			if fi.Name == "" {
 				continue
+			}
+
+			// entries are sorted, so all remaining entries are hot too
+			if hot(fi) {
+				keptHot = true
+				break
 			}
 
 			p := filepath.Join(c.dir, fi.Name[:2], fi.Name)
@@ -122,7 +169,39 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 			l.Debug("Removed entry by max size", slog.String("name", p))
 			freed += fi.Size
+			files[i] = fileInfo{}
 		}
+	}
+
+	if limits.HardMaxSize != nil {
+		for i, fi := range files {
+			if !over(limits.HardMaxSize) {
+				break
+			}
+
+			if fi.Name == "" {
+				continue
+			}
+
+			p := filepath.Join(c.dir, fi.Name[:2], fi.Name)
+			if err := os.RemoveAll(p); err != nil {
+				l.Debug("Failed to remove entry by hard max size", slog.String("name", p), slog.String("error", err.Error()))
+				continue
+			}
+
+			if hot(fi) {
+				l.Debug("Removed hot entry by hard max size", slog.String("name", p))
+			} else {
+				l.Debug("Removed entry by hard max size", slog.String("name", p))
+			}
+
+			freed += fi.Size
+			files[i] = fileInfo{}
+		}
+	}
+
+	if keptHot && over(limits.MaxSize) {
+		surge = before - freed - *limits.MaxSize
 	}
 
 	return

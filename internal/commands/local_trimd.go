@@ -11,10 +11,12 @@ import (
 
 // LocalTrimdOpts contains flag values for [LocalTrimd].
 type LocalTrimdOpts struct {
-	Dir       string
-	UnusedFor unit.Duration
-	MaxSize   string
-	Interval  unit.Duration
+	Dir            string
+	UnusedFor      unit.Duration
+	MaxSize        string
+	KeepUsedWithin unit.Duration
+	HardMaxSize    string // empty value disables it, like 0
+	Interval       unit.Duration
 }
 
 // LocalTrimd continuously trims a local cache until ctx is canceled.
@@ -23,10 +25,14 @@ func LocalTrimd(ctx context.Context, opts *LocalTrimdOpts, l *slog.Logger) error
 		return fmt.Errorf("--interval must be positive: %d", opts.Interval)
 	}
 
+	warnKeepUsedWithin(opts.KeepUsedWithin, l)
+
 	trimOpts := &LocalTrimOpts{
-		Dir:       opts.Dir,
-		UnusedFor: opts.UnusedFor,
-		MaxSize:   opts.MaxSize,
+		Dir:            opts.Dir,
+		UnusedFor:      opts.UnusedFor,
+		MaxSize:        opts.MaxSize,
+		KeepUsedWithin: opts.KeepUsedWithin,
+		HardMaxSize:    opts.HardMaxSize,
 	}
 
 	t := time.Tick(time.Duration(opts.Interval))
