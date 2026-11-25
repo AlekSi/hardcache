@@ -40,14 +40,18 @@ var cli struct {
 		Dir string `default:"${local_dir_default}" type:"path" help:"Directory to use."`
 
 		Trim struct {
-			UnusedFor unit.Duration `default:"5d" help:"${local_unused_for_help}"`
-			MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
+			UnusedFor      unit.Duration `default:"5d" help:"${local_unused_for_help}"`
+			MaxSize        string        `default:"0GB" help:"${local_max_size_help}"`
+			KeepUsedWithin unit.Duration `default:"0" help:"${local_keep_used_within_help}"`
+			HardMaxSize    string        `default:"0GB" help:"${local_hard_max_size_help}"`
 		} `cmd:"" help:"Trim local cache."`
 
 		Trimd struct {
-			UnusedFor unit.Duration `default:"5d" help:"${local_unused_for_help}"`
-			MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
-			Interval  unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
+			UnusedFor      unit.Duration `default:"5d" help:"${local_unused_for_help}"`
+			MaxSize        string        `default:"0GB" help:"${local_max_size_help}"`
+			KeepUsedWithin unit.Duration `default:"0" help:"${local_keep_used_within_help}"`
+			HardMaxSize    string        `default:"0GB" help:"${local_hard_max_size_help}"`
+			Interval       unit.Duration `short:"i" default:"1h" help:"Interval between trimmings."`
 		} `cmd:"" help:"Trim local cache continuously."`
 	} `cmd:""`
 
@@ -64,6 +68,15 @@ func main() {
 			"local_max_size_help": "Remove entries, starting from least recently used, " +
 				"if cache size is larger than this value. " +
 				"Supports MiB, GB, etc. suffixes, or percentage of the total disk space (e.g., 5%). " +
+				"Pass 0 to disable.",
+			"local_keep_used_within_help": "Do not remove entries used within this duration because of --max-size, " +
+				"letting the cache stay larger than it by their size. " +
+				"Go updates entry usage times at most once per hour, so the window protects about 1h less " +
+				"than it says; use 2h or more. Must be shorter than --unused-for, if that is set. " +
+				"Pass 0 to disable.",
+			"local_hard_max_size_help": "Remove entries, starting from least recently used, " +
+				"including those kept by --keep-used-within, if cache size is larger than this value. " +
+				"Same format as --max-size; cannot be less than it. " +
 				"Pass 0 to disable.",
 		},
 		kong.ConfigureHelp(kong.HelpOptions{
@@ -89,17 +102,21 @@ func main() {
 	switch kongCtx.Command() {
 	case "local trim":
 		err = commands.LocalTrim(&commands.LocalTrimOpts{
-			Dir:       cli.Local.Dir,
-			UnusedFor: cli.Local.Trim.UnusedFor,
-			MaxSize:   cli.Local.Trim.MaxSize,
+			Dir:            cli.Local.Dir,
+			UnusedFor:      cli.Local.Trim.UnusedFor,
+			MaxSize:        cli.Local.Trim.MaxSize,
+			KeepUsedWithin: cli.Local.Trim.KeepUsedWithin,
+			HardMaxSize:    cli.Local.Trim.HardMaxSize,
 		}, l)
 
 	case "local trimd":
 		err = commands.LocalTrimd(ctx, &commands.LocalTrimdOpts{
-			Dir:       cli.Local.Dir,
-			UnusedFor: cli.Local.Trimd.UnusedFor,
-			MaxSize:   cli.Local.Trimd.MaxSize,
-			Interval:  cli.Local.Trimd.Interval,
+			Dir:            cli.Local.Dir,
+			UnusedFor:      cli.Local.Trimd.UnusedFor,
+			MaxSize:        cli.Local.Trimd.MaxSize,
+			KeepUsedWithin: cli.Local.Trimd.KeepUsedWithin,
+			HardMaxSize:    cli.Local.Trimd.HardMaxSize,
+			Interval:       cli.Local.Trimd.Interval,
 		}, l)
 
 	default:

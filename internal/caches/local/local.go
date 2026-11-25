@@ -4,34 +4,34 @@ package local
 import (
 	"io"
 	"log/slog"
-	"time"
 
 	"github.com/AlekSi/lazyerrors"
 
 	"github.com/AlekSi/hardcache/internal/go/cache"
 )
 
+// TrimLimits contains limits enforced by trimming.
+type TrimLimits = cache.TrimLimits
+
 // Cache represents a local Go build cache, compatible with a built-in one.
 // It provides more configuration options for trimming.
 type Cache struct {
-	dc      *cache.DiskCache
-	cutoff  *time.Time
-	maxSize *int64
-	l       *slog.Logger
+	dc     *cache.DiskCache
+	limits TrimLimits
+	l      *slog.Logger
 }
 
 // New creates a new [Cache].
-func New(dir string, cutoff *time.Time, maxSize *int64, l *slog.Logger) (*Cache, error) {
+func New(dir string, limits TrimLimits, l *slog.Logger) (*Cache, error) {
 	dc, err := cache.Open(dir)
 	if err != nil {
 		return nil, lazyerrors.Error(err)
 	}
 
 	return &Cache{
-		dc:      dc,
-		cutoff:  cutoff,
-		maxSize: maxSize,
-		l:       l,
+		dc:     dc,
+		limits: limits,
+		l:      l,
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func (c *Cache) Put(id cache.ActionID, rs io.ReadSeeker) (cache.OutputID, int64,
 
 // Close implements [cache.Cache].
 func (c *Cache) Close() error {
-	c.dc.TrimExtra(c.cutoff, c.maxSize, c.l)
+	c.dc.TrimExtra(c.limits, c.l)
 	return nil
 }
 
@@ -62,10 +62,12 @@ func (c *Cache) FuzzDir() string {
 }
 
 // TrimForce removes cache entries (starting from least recently used),
-// enforcing both cutoff date and max cache size, if set.
+// enforcing trim limits.
 // It ignores the last trim time, but updates it.
-func (c *Cache) TrimForce() (before, freed int64) {
-	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)
+//
+// See [cache.DiskCache.TrimForce] for the returned values.
+func (c *Cache) TrimForce() (before, freed, surge int64) {
+	return c.dc.TrimForce(c.limits, c.l)
 }
 
 // check interfaces
