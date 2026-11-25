@@ -20,6 +20,15 @@ import (
 // EntryNotFoundError is exported for use in other packages.
 type EntryNotFoundError = entryNotFoundError
 
+// Stats describes cache state derived from a full directory scan.
+// LeastRecentlyUsed and MostRecentlyUsed are approximate last-use times from filesystem mtimes.
+type Stats struct {
+	Entries           int
+	Bytes             int64
+	LeastRecentlyUsed *time.Time
+	MostRecentlyUsed  *time.Time
+}
+
 // fileInfo represents information about a file or directory with executable in the cache.
 // The order of fields is weird to make struct smaller.
 type fileInfo struct {
@@ -32,6 +41,10 @@ type fileInfo struct {
 // enforcing both cutoff date and max cache size, if set.
 // Like [Trim], it honors the last trim time, doing nothing if the last trim was recent.
 func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
+	if cutoff == nil && maxSize == nil {
+		return -1, 0
+	}
+
 	// see DiskCache.Trim
 	if data, err := lockedfile.Read(filepath.Join(c.dir, "trim.txt")); err == nil {
 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
@@ -43,19 +56,29 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	before, freed = c.TrimForce(cutoff, maxSize, l)
+	before, freed, _ = c.TrimForce(cutoff, maxSize, l)
 	return
+}
+
+// Stats scans the cache and reports its current contents.
+func (c *DiskCache) Stats(l *slog.Logger) *Stats {
+	files, _ := c.read(l)
+	return statsForFiles(files)
 }
 
 // TrimForce removes cache entries (starting from least recently used),
 // enforcing both cutoff date and max cache size, if set.
-// It ignores the last trim time, but updates it.
+// With both limits nil, it returns -1, 0, and the current cache statistics.
+// With either limit set, it ignores the last trim time and records the new one.
 //
+// It returns statistics derived from the same cache scan used for trimming.
 // Passed logger is used for debug messages only.
-func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64) {
-	before = -1
-	now := c.now()
+func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64, stats *Stats) {
+	if cutoff == nil && maxSize == nil {
+		return -1, 0, c.Stats(l)
+	}
 
+	now := c.now()
 	defer func() {
 		var b bytes.Buffer
 		fmt.Fprintf(&b, "%d", now.Unix())
@@ -72,24 +95,12 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		)
 	}()
 
-	if cutoff == nil && maxSize == nil {
-		return
-	}
-
 	files, before := c.read(l)
-
-	if cutoff == nil && before <= *maxSize {
-		return
-	}
-
-	slices.SortFunc(files, func(f1, f2 fileInfo) int {
-		return f1.ModTime.Compare(f2.ModTime)
-	})
 
 	if cutoff != nil {
 		for i, fi := range files {
-			if !fi.ModTime.Before(*cutoff) {
-				break
+			if fi.Name == "" || !fi.ModTime.Before(*cutoff) {
+				continue
 			}
 
 			p := filepath.Join(c.dir, fi.Name[:2], fi.Name)
@@ -104,10 +115,14 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	if maxSize != nil {
-		for _, fi := range files {
+	if maxSize != nil && before-freed > *maxSize {
+		slices.SortFunc(files, func(f1, f2 fileInfo) int {
+			return f1.ModTime.Compare(f2.ModTime)
+		})
+
+		for i, fi := range files {
 			if before-freed <= *maxSize {
-				return
+				break
 			}
 
 			if fi.Name == "" {
@@ -122,16 +137,37 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 
 			l.Debug("Removed entry by max size", slog.String("name", p))
 			freed += fi.Size
+			files[i] = fileInfo{}
 		}
 	}
 
-	return
+	return before, freed, statsForFiles(files)
+}
+
+func statsForFiles(files []fileInfo) *Stats {
+	stats := new(Stats)
+	for _, fi := range files {
+		if fi.Name == "" {
+			continue
+		}
+
+		stats.Entries++
+		stats.Bytes += fi.Size
+
+		if stats.LeastRecentlyUsed == nil || fi.ModTime.Before(*stats.LeastRecentlyUsed) {
+			stats.LeastRecentlyUsed = &fi.ModTime
+		}
+		if stats.MostRecentlyUsed == nil || fi.ModTime.After(*stats.MostRecentlyUsed) {
+			stats.MostRecentlyUsed = &fi.ModTime
+		}
+	}
+
+	return stats
 }
 
 // read reads the entire cache directory.
 func (c *DiskCache) read(l *slog.Logger) (files []fileInfo, before int64) {
 	files = make([]fileInfo, 0, 256)
-
 	for i := range 256 {
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
 

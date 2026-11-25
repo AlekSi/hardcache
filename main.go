@@ -39,6 +39,10 @@ var cli struct {
 	Local struct {
 		Dir string `default:"${local_dir_default}" type:"path" help:"Directory to use."`
 
+		Status struct {
+			JSON bool `help:"Output as compact JSON."`
+		} `cmd:"" help:"Show local cache status."`
+
 		Trim struct {
 			UnusedFor unit.Duration `default:"5d" help:"${local_unused_for_help}"`
 			MaxSize   string        `default:"0GB" help:"${local_max_size_help}"`
@@ -87,6 +91,12 @@ func main() {
 
 	var err error
 	switch kongCtx.Command() {
+	case "local status":
+		err = commands.LocalStatus(&commands.LocalStatusOpts{
+			Dir:  cli.Local.Dir,
+			JSON: cli.Local.Status.JSON,
+		}, os.Stdout, l)
+
 	case "local trim":
 		err = commands.LocalTrim(&commands.LocalTrimOpts{
 			Dir:       cli.Local.Dir,

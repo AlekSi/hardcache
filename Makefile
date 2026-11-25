@@ -11,4 +11,5 @@ test:
 run:
 	go build -race -o bin/
 	bin/hardcache --help
+	bin/hardcache local status
 	mkdir -p tmp/cache

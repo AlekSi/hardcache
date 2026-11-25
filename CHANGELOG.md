@@ -1,3 +1,10 @@
+## Unreleased
+
+## What's Changed
+
+* Add `hardcache local status` command with human-readable and `--json` output.
+* Move trim-only flags (`--unused-for`, `--max-size`) under `trim` and `trimd` commands.
+
 ## [v0.2.0](https://github.com/AlekSi/hardcache/releases/tag/v0.2.0) (2025-12-07)
 
 ## What's Changed
