@@ -43,12 +43,11 @@ type LocalStatusOpts struct {
 
 // LocalStatus writes local cache and disk usage statistics to out.
 func LocalStatus(opts *LocalStatusOpts, out io.Writer, l *slog.Logger) error {
-	c, err := local.New(opts.Dir, nil, nil, l)
+	stats, err := local.Stats(opts.Dir, l)
 	if err != nil {
 		return err
 	}
 
-	_, _, stats := c.TrimForce()
 	total, free, err := local.DiskInfo(opts.Dir)
 	if err != nil {
 		return err
@@ -102,33 +101,37 @@ func newLocalStatusOutput(dir string, stats *cache.Stats, total, free int64) loc
 }
 
 func (s localStatusOutput) String() string {
-	formatTime := func(t *string) string {
-		if t == nil {
-			return "n/a"
-		}
-
-		return *t
-	}
-
 	return fmt.Sprintf(
 		`Directory: %s
 Cache entries: %d
-Cache size: %s (%d bytes)
+Cache size: %s
 Least recently used: %s
 Most recently used: %s
-Disk total: %s (%d bytes)
-Disk used: %s (%d bytes) (%.2f%%)
-Disk free: %s (%d bytes) (%.2f%%)
+Disk total: %s
+Disk used: %s (%.2f%%)
+Disk free: %s (%.2f%%)
 Cache of total disk: %.2f%%
 `,
 		s.Directory,
 		s.Cache.Entries,
-		s.Cache.Human, s.Cache.Bytes,
-		formatTime(s.Cache.LeastRecentlyUsed),
-		formatTime(s.Cache.MostRecentlyUsed),
-		s.Disk.TotalHuman, s.Disk.TotalBytes,
-		s.Disk.UsedHuman, s.Disk.UsedBytes, s.Disk.UsedPercent,
-		s.Disk.FreeHuman, s.Disk.FreeBytes, s.Disk.FreePercent,
+		formatSize(s.Cache.Human, s.Cache.Bytes),
+		timestampOrNA(s.Cache.LeastRecentlyUsed),
+		timestampOrNA(s.Cache.MostRecentlyUsed),
+		formatSize(s.Disk.TotalHuman, s.Disk.TotalBytes),
+		formatSize(s.Disk.UsedHuman, s.Disk.UsedBytes), s.Disk.UsedPercent,
+		formatSize(s.Disk.FreeHuman, s.Disk.FreeBytes), s.Disk.FreePercent,
 		s.CacheOfTotalPercent,
 	)
+}
+
+func formatSize(human string, bytes int64) string {
+	return fmt.Sprintf("%s (%d bytes)", human, bytes)
+}
+
+func timestampOrNA(t *string) string {
+	if t == nil {
+		return "n/a"
+	}
+
+	return *t
 }

@@ -60,38 +60,42 @@ func (c *DiskCache) TrimExtra(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 	return
 }
 
+// Stats scans the cache and reports its current contents.
+func (c *DiskCache) Stats(l *slog.Logger) *Stats {
+	files, _ := c.read(l)
+	return statsForFiles(files)
+}
+
 // TrimForce removes cache entries (starting from least recently used),
 // enforcing both cutoff date and max cache size, if set.
-// If both are nil, it only scans the cache. Otherwise, it ignores the last
-// trim time, but updates it.
+// With both limits nil, it returns -1, 0, and the current cache statistics.
+// With either limit set, it ignores the last trim time and records the new one.
 //
 // It returns statistics derived from the same cache scan used for trimming.
 // Passed logger is used for debug messages only.
 func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger) (before, freed int64, stats *Stats) {
-	before = -1
-	if cutoff != nil || maxSize != nil {
-		now := c.now()
-		defer func() {
-			var b bytes.Buffer
-			fmt.Fprintf(&b, "%d", now.Unix())
-			if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0o666); err != nil {
-				l.Debug("Failed to write trim.txt", slog.String("error", err.Error()))
-				return
-			}
-
-			l.Debug(
-				"trim.txt updated",
-				slog.Int64("before_bytes", before),
-				slog.Int64("after_bytes", before-freed),
-				slog.Int64("freed_bytes", freed),
-			)
-		}()
+	if cutoff == nil && maxSize == nil {
+		return -1, 0, c.Stats(l)
 	}
 
-	files, bytes := c.read(l)
-	if cutoff != nil || maxSize != nil {
-		before = bytes
-	}
+	now := c.now()
+	defer func() {
+		var b bytes.Buffer
+		fmt.Fprintf(&b, "%d", now.Unix())
+		if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0o666); err != nil {
+			l.Debug("Failed to write trim.txt", slog.String("error", err.Error()))
+			return
+		}
+
+		l.Debug(
+			"trim.txt updated",
+			slog.Int64("before_bytes", before),
+			slog.Int64("after_bytes", before-freed),
+			slog.Int64("freed_bytes", freed),
+		)
+	}()
+
+	files, before := c.read(l)
 
 	if cutoff != nil {
 		for i, fi := range files {
@@ -137,7 +141,11 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	stats = new(Stats)
+	return before, freed, statsForFiles(files)
+}
+
+func statsForFiles(files []fileInfo) *Stats {
+	stats := new(Stats)
 	for _, fi := range files {
 		if fi.Name == "" {
 			continue
@@ -154,7 +162,7 @@ func (c *DiskCache) TrimForce(cutoff *time.Time, maxSize *int64, l *slog.Logger)
 		}
 	}
 
-	return
+	return stats
 }
 
 // read reads the entire cache directory.

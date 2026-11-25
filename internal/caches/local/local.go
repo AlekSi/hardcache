@@ -35,6 +35,16 @@ func New(dir string, cutoff *time.Time, maxSize *int64, l *slog.Logger) (*Cache,
 	}, nil
 }
 
+// Stats opens the local cache and reports its current contents.
+func Stats(dir string, l *slog.Logger) (*cache.Stats, error) {
+	dc, err := cache.Open(dir)
+	if err != nil {
+		return nil, lazyerrors.Error(err)
+	}
+
+	return dc.Stats(l), nil
+}
+
 // Get implements [cache.Cache].
 func (c *Cache) Get(id cache.ActionID) (cache.Entry, error) {
 	return c.dc.Get(id)
@@ -63,7 +73,7 @@ func (c *Cache) FuzzDir() string {
 
 // TrimForce removes cache entries (starting from least recently used),
 // enforcing both cutoff date and max cache size, if set.
-// It ignores the last trim time, but updates it.
+// It records a new trim time when either limit is set.
 // It returns statistics derived from the same cache scan used for trimming.
 func (c *Cache) TrimForce() (before, freed int64, stats *cache.Stats) {
 	return c.dc.TrimForce(c.cutoff, c.maxSize, c.l)

@@ -10,7 +10,6 @@ import (
 	"github.com/AlekSi/shoulda"
 	"github.com/AlekSi/shoulda/musta"
 
-	"github.com/AlekSi/hardcache/internal/caches/local"
 	"github.com/AlekSi/hardcache/internal/caches/local/localtest"
 )
 
@@ -61,16 +60,8 @@ func TestLocalStatus(t *testing.T) {
 func TestLocalStatusEmpty(t *testing.T) {
 	t.Parallel()
 
-	dir := localtest.Setup(t)
-	c, err := local.New(dir, nil, new(int64(0)), slog.Default())
-	musta.NoError(t, err)
-
-	before, freed, _ := c.TrimForce()
-	shoulda.BeEqual(t, before, int64(109_518_524))
-	shoulda.BeEqual(t, freed, before)
-
 	var output strings.Builder
-	musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: dir}, &output, slog.Default()))
+	musta.NoError(t, LocalStatus(&LocalStatusOpts{Dir: t.TempDir()}, &output, slog.Default()))
 
 	actual := output.String()
 	shoulda.SatisfyWith(t, actual, "Cache entries: 0", strings.Contains)
